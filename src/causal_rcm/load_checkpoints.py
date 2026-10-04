@@ -22,6 +22,26 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 
 
+def safe_torch_load(path, map_location, verbose=True):
+    """torch.load with weights_only fallback (torch>=2.6 defaults changed)."""
+    try:
+        return torch.load(str(path), map_location=map_location)
+    except Exception as e:
+        if verbose:
+            print(f"    [warn] torch.load failed ({type(e).__name__}), retrying weights_only=False")
+        return torch.load(str(path), map_location=map_location, weights_only=False)
+
+
+def find_file_recursive(root: Path, filename: str) -> Optional[Path]:
+    """Find a file by exact name anywhere under root (Kaggle nests files in subfolders)."""
+    if root is None or not root.exists():
+        return None
+    for f in root.rglob(filename):
+        if f.is_file():
+            return f
+    return None
+
+
 def find_kaggle_input_paths() -> Dict[str, Path]:
     """
     Find actual mount paths in /kaggle/input (names may vary).
@@ -113,10 +133,10 @@ def load_causal_rcm_checkpoints(
     if checkpoint_type in ['c1-1', 'both']:
         c1_1_file = c1_1_files.get(step_count)
         if c1_1_file:
-            c1_1_path = paths['rcm_ckpts'] / c1_1_file
-            if c1_1_path.exists():
-                print(f"Loading c1-1 (frame-wise, K=1, S={step_count})...")
-                result['c1_1'] = torch.load(c1_1_path, map_location=device)
+            c1_1_path = find_file_recursive(paths['rcm_ckpts'], c1_1_file)
+            if c1_1_path is not None:
+                print(f"Loading c1-1 (frame-wise, K=1, S={step_count}) from {c1_1_path.name}...")
+                result['c1_1'] = safe_torch_load(c1_1_path, map_location=device)
                 result['metadata']['c1_1'] = {
                     'path': str(c1_1_path),
                     'size_mb': c1_1_path.stat().st_size / (1024**2),
@@ -124,16 +144,16 @@ def load_causal_rcm_checkpoints(
                 }
                 print(f"  Loaded: {result['metadata']['c1_1']['size_mb']:.1f} MB")
             else:
-                print(f"  WARNING: {c1_1_file} not found, skipping c1-1")
+                print(f"  WARNING: {c1_1_file} not found (searched recursively), skipping c1-1")
 
     # Load chunk-wise checkpoint
     if checkpoint_type in ['c3-3', 'both']:
         c3_3_file = c3_3_files.get(step_count)
         if c3_3_file:
-            c3_3_path = paths['rcm_ckpts'] / c3_3_file
-            if c3_3_path.exists():
-                print(f"Loading c3-3 (chunk-wise, K=3, S={step_count})...")
-                result['c3_3'] = torch.load(c3_3_path, map_location=device)
+            c3_3_path = find_file_recursive(paths['rcm_ckpts'], c3_3_file)
+            if c3_3_path is not None:
+                print(f"Loading c3-3 (chunk-wise, K=3, S={step_count}) from {c3_3_path.name}...")
+                result['c3_3'] = safe_torch_load(c3_3_path, map_location=device)
                 result['metadata']['c3_3'] = {
                     'path': str(c3_3_path),
                     'size_mb': c3_3_path.stat().st_size / (1024**2),
@@ -141,31 +161,35 @@ def load_causal_rcm_checkpoints(
                 }
                 print(f"  Loaded: {result['metadata']['c3_3']['size_mb']:.1f} MB")
             else:
-                print(f"  WARNING: {c3_3_file} not found, skipping c3-3")
+                print(f"  WARNING: {c3_3_file} not found (searched recursively), skipping c3-3")
 
     # Load VAE
     if paths['vae']:
-        vae_path = paths['vae'] / 'Wan2.1_VAE.pth'
-        if vae_path.exists():
+        vae_path = find_file_recursive(paths['vae'], 'Wan2.1_VAE.pth')
+        if vae_path is not None:
             print(f"Loading VAE decoder...")
-            result['vae'] = torch.load(vae_path, map_location=device)
+            result['vae'] = safe_torch_load(vae_path, map_location=device)
             result['metadata']['vae'] = {
                 'path': str(vae_path),
                 'size_mb': vae_path.stat().st_size / (1024**2)
             }
             print(f"  Loaded: {result['metadata']['vae']['size_mb']:.1f} MB")
+        else:
+            print(f"  WARNING: Wan2.1_VAE.pth not found")
 
     # Load T5 text encoder
     if paths['t5']:
-        t5_path = paths['t5'] / 'models_t5_umt5-xxl-enc-bf16.pth'
-        if t5_path.exists():
+        t5_path = find_file_recursive(paths['t5'], 'models_t5_umt5-xxl-enc-bf16.pth')
+        if t5_path is not None:
             print(f"Loading T5 text encoder...")
-            result['t5'] = torch.load(t5_path, map_location=device)
+            result['t5'] = safe_torch_load(t5_path, map_location=device)
             result['metadata']['t5'] = {
                 'path': str(t5_path),
                 'size_mb': t5_path.stat().st_size / (1024**2)
             }
             print(f"  Loaded: {result['metadata']['t5']['size_mb']:.1f} MB")
+        else:
+            print(f"  WARNING: models_t5_umt5-xxl-enc-bf16.pth not found")
 
     return result
 

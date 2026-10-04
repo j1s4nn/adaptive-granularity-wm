@@ -54,7 +54,18 @@ def push_kernel(job_dir: Path):
         return None
 
     print(f"[OK] Kernel pushed")
-    return stdout
+
+    # CLI 2.x: extract the real slug from the progress URL (title-derived slug
+    # may differ from metadata id)
+    for line in stdout.splitlines():
+        if "kaggle.com/code/" in line:
+            import re
+            m = re.search(r"kaggle\.com/code/([\w\-]+/[\w\-]+)", line)
+            if m:
+                print(f"[OK] Kernel slug: {m.group(1)}")
+                return m.group(1)
+
+    return None
 
 
 def get_kernel_status(kernel_slug: str):
@@ -96,10 +107,12 @@ def wait_for_completion(kernel_slug: str, timeout: int, poll_interval: int = 60)
 
         print(f"  Status: {status} (elapsed: {int(time.time() - start_time)}s)")
 
-        if status == "complete":
+        # Normalize CLI 1.x ("complete") and CLI 2.x ("KernelWorkerStatus.COMPLETE")
+        status_lower = status.lower()
+        if "complete" in status_lower:
             print("[OK] Kernel complete!")
             return True
-        elif status in ["error", "failed", "cancelled"]:
+        elif "error" in status_lower or "failed" in status_lower or "cancelled" in status_lower:
             print(f"[X] Kernel {status}")
             return False
 
@@ -133,11 +146,9 @@ def main():
     with open(metadata_file) as f:
         metadata = json.load(f)
 
-    kernel_slug = metadata["id"]
-
-    # Push kernel
-    push_result = push_kernel(job_dir)
-    if push_result is None:
+    # Push kernel (returns the real slug from CLI 2.x output)
+    kernel_slug = push_kernel(job_dir)
+    if kernel_slug is None:
         sys.exit(1)
 
     # Wait for completion

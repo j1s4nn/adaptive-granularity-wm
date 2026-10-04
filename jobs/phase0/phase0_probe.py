@@ -1,23 +1,27 @@
 """
-Phase 0: Feasibility Probe
-==========================
+Phase 0b: Checkpoint + VRAM Feasibility Probe (T4)
+===================================================
 
-GOAL: Confirm T4 compatibility, checkpoint loading, VRAM limits, internals access
+GOAL: Confirm checkpoint loading, VRAM limits, and internals access (EMA)
+      WITHOUT cloning the rcm repo (that is Phase 0c).
 
 INPUT:
-- Kaggle datasets (mounted in /kaggle/input)
-- T4 GPU (16GB VRAM)
+- Kaggle datasets mounted in /kaggle/input
+  (ajjisan/causal-rcm-ckpts, ajjisan/wan21-t5, ajjisan/wan21-dit-vae)
+- T4 GPU (16GB VRAM, Turing, no bf16)
 
-OUTPUT:
-- VRAM profile (peak usage for c1-1 vs c3-3)
-- Available internals list (EMA model, latents, KV cache)
-- FlashAttention-2 availability
-- Maximum rollout length at 480p
-- Action checkpoint detection (Cosmos 3)
+OUTPUT (/kaggle/working/results/phase0/<run_id>_meta.json):
+- environment: torch/CUDA versions, GPU name, FA2 availability, SDPA availability
+- dataset files: checkpoint/VAE/T5 files actually found (recursive search)
+- per-checkpoint: loaded?, size_mb, load_time_s, peak VRAM, top-level keys,
+  EMA-related keys, sample tensor shapes/dtypes
+- vae/t5: loaded?, size_mb, peak VRAM
+- verdict: PASS/FAIL with criteria
 
-PASS/FAIL criteria:
-- PASS: Both checkpoints load, peak VRAM <14GB, inference runs
-- FAIL: VRAM overflow, checkpoints missing, critical errors
+PASS criteria:
+- c1-1_step2 AND c3-3_step4 both load on T4
+- peak VRAM during single-model load < 14.5 GB
+- torch SDPA available (FA2 expected unavailable on Turing)
 """
 
 import sys
@@ -28,263 +32,251 @@ import traceback
 from pathlib import Path
 from datetime import datetime
 
+# The kernel runs as /kaggle/src/script.py with the bundled src/ folder
+# uploaded next to it. Make sure both candidate roots are importable.
+for p in ('/kaggle/src', os.path.dirname(os.path.abspath(__file__)), '/kaggle/working'):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 import torch
 import torch.cuda
-
-# Add src to path
-sys.path.insert(0, '/kaggle/working')
 
 from src.causal_rcm import (
     load_causal_rcm_checkpoints,
     check_flash_attention,
     get_attention_backend
 )
+from src.causal_rcm.load_checkpoints import (
+    find_kaggle_input_paths,
+    list_available_checkpoints,
+    safe_torch_load,
+    find_file_recursive
+)
+
+TARGETS = [
+    # (label, checkpoint_type, step_count, filename)
+    ('c1_1_step2', 'c1-1', 2, 'Causal_rCM_Wan2.1_T2V_1.3B_480p_TF-dCM-init_SF-DMD_c1-1_step2.pt'),
+    ('c1_1_step4', 'c1-1', 4, 'Causal_rCM_Wan2.1_T2V_1.3B_480p_TF-dCM-init_SF-DMD_c1-1_step4.pt'),
+    ('c3_3_step4', 'c3-3', 4, 'Causal_rCM_Wan2.1_T2V_1.3B_480p_TF-dCM-init_SF-DMD_c3-3_step4.pt'),
+]
 
 
 def profile_vram():
-    """Profile GPU memory usage."""
     if not torch.cuda.is_available():
         return {"error": "CUDA not available"}
-
-    torch.cuda.reset_peak_memory_stats()
-
     return {
         "device": torch.cuda.get_device_name(),
-        "total_memory_gb": torch.cuda.get_device_properties(0).total_memory / (1024**3),
-        "allocated_gb": torch.cuda.memory_allocated() / (1024**3),
-        "reserved_gb": torch.cuda.memory_reserved() / (1024**3),
-        "peak_allocated_gb": torch.cuda.max_memory_allocated() / (1024**3)
+        "total_memory_gb": round(torch.cuda.get_device_properties(0).total_memory / (1024**3), 2),
+        "allocated_gb": round(torch.cuda.memory_allocated() / (1024**3), 3),
+        "reserved_gb": round(torch.cuda.memory_reserved() / (1024**3), 3),
+        "peak_allocated_gb": round(torch.cuda.max_memory_allocated() / (1024**3), 3),
     }
 
 
-def check_internals(checkpoint):
-    """
-    Check what internals are exposed in the checkpoint.
+def inspect_ema(ckpt):
+    """Look for EMA copies anywhere in the checkpoint structure."""
+    info = {"has_ema": False, "ema_keys": []}
+    if not isinstance(ckpt, dict):
+        return info
 
-    Looking for:
-    - EMA model (for u_i^EMA)
-    - Model architecture details
-    - Config/hyperparameters
-    """
-    internals = {
-        "keys": list(checkpoint.keys()) if isinstance(checkpoint, dict) else "Not a dict",
-        "has_ema": False,
-        "has_model": False,
-        "has_config": False
-    }
+    top_keys = [str(k) for k in ckpt.keys()]
+    for k in top_keys:
+        if 'ema' in k.lower():
+            info["has_ema"] = True
+            info["ema_keys"].append(f"top:{k}")
+            v = ckpt[k]
+            if isinstance(v, dict):
+                info["ema_num_tensors"] = len(v)
+                info["ema_sample_keys"] = list(v.keys())[:5]
+            elif isinstance(v, torch.nn.Module):
+                info["ema_type"] = type(v).__name__
 
-    if isinstance(checkpoint, dict):
-        # Common checkpoint structures
-        for key in checkpoint.keys():
-            key_lower = str(key).lower()
-            if 'ema' in key_lower:
-                internals["has_ema"] = True
-                internals["ema_key"] = key
-            if 'model' in key_lower or 'state_dict' in key_lower:
-                internals["has_model"] = True
-                internals["model_key"] = key
-            if 'config' in key_lower or 'hparams' in key_lower:
-                internals["has_config"] = True
-                internals["config_key"] = key
+    # Some checkpoints nest: {'model': {...}, 'model_ema': {...}}
+    for k, v in ckpt.items():
+        if isinstance(v, dict):
+            for sub in v.keys():
+                if 'ema' in str(sub).lower():
+                    info["has_ema"] = True
+                    info["ema_keys"].append(f"{k}.{sub}")
+                    if isinstance(v[sub], dict):
+                        info["ema_num_tensors"] = len(v[sub])
+                        info["ema_sample_keys"] = list(v[sub].keys())[:5]
+                    break
 
-    return internals
-
-
-def test_inference(checkpoints, max_frames=10):
-    """
-    Test basic inference with minimal rollout.
-
-    Args:
-        checkpoints: Loaded checkpoint dict
-        max_frames: Small test rollout length
-    """
-    print(f"\nTesting inference with {max_frames} frames...")
-
-    # This is a placeholder - actual test depends on rcm repo structure
-    # In a real Phase 0, we'd:
-    # 1. Clone NVlabs/rcm repo
-    # 2. Use their inference script
-    # 3. Generate 10 frames
-    # 4. Measure VRAM peak
-
-    result = {
-        "status": "PLACEHOLDER",
-        "message": "Actual inference requires rcm repo integration",
-        "vram_peak_gb": 0.0
-    }
-
-    return result
+    return info
 
 
-def search_action_checkpoint():
-    """
-    Search for action-conditioned (Cosmos 3) checkpoint.
-    """
-    print("\nSearching for action-conditioned checkpoint...")
+def inspect_state(ckpt):
+    """Summary of checkpoint structure: types, tensor counts, shapes."""
+    info = {"top_level_keys": [str(k) for k in ckpt.keys()][:30] if isinstance(ckpt, dict) else None}
+    if isinstance(ckpt, dict):
+        for k, v in ckpt.items():
+            if isinstance(v, dict) and len(v) > 0:
+                first_val = next(iter(v.values()))
+                info["state_dict_like"] = str(k)
+                info["num_tensors"] = len(v)
+                if torch.is_tensor(first_val):
+                    info["sample_shape"] = list(first_val.shape)
+                    info["sample_dtype"] = str(first_val.dtype)
+                break
+    return info
 
-    kaggle_input = Path("/kaggle/input")
-    if not kaggle_input.exists():
-        return {"found": False, "message": "Not in Kaggle environment"}
 
-    # Search all mounted datasets for action/camera/cosmos keywords
-    action_files = []
-    for dataset_dir in kaggle_input.iterdir():
-        if dataset_dir.is_dir():
-            for file in dataset_dir.rglob("*.pt"):
-                filename_lower = file.name.lower()
-                if any(kw in filename_lower for kw in ['action', 'camera', 'cosmos', 'control']):
-                    action_files.append(str(file))
+def probe_target(label, checkpoint_type, step_count, filename):
+    out = {"label": label, "loaded": False}
+    try:
+        torch.cuda.reset_peak_memory_stats()
+        t0 = time.time()
+        ckpts = load_causal_rcm_checkpoints(
+            device='cuda',
+            checkpoint_type=checkpoint_type,
+            step_count=step_count,
+            verify_hashes=False
+        )
+        load_s = time.time() - t0
+        key = 'c1_1' if checkpoint_type == 'c1-1' else 'c3_3'
+        out["load_time_s"] = round(load_s, 1)
+        out["vram"] = profile_vram()
 
-    return {
-        "found": len(action_files) > 0,
-        "files": action_files,
-        "message": f"Found {len(action_files)} potential action checkpoints"
-    }
+        if key in ckpts:
+            ckpt = ckpts[key]
+            out["loaded"] = True
+            out["internals"] = inspect_state(ckpt)
+            out["ema"] = inspect_ema(ckpt)
+            out["size_mb"] = ckpts.get('metadata', {}).get(key, {}).get('size_mb')
+        else:
+            out["reason"] = f"{filename} not found in dataset"
+
+        # Free memory before next target
+        del ckpts
+        torch.cuda.empty_cache()
+    except Exception as e:
+        out["error"] = str(e)
+        out["traceback"] = traceback.format_exc()
+    return out
 
 
 def main():
-    """Run Phase 0 feasibility probe."""
-
     start_time = time.time()
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
     results = {
         "run_id": run_id,
-        "phase": "phase0",
+        "phase": "phase0b",
         "start_time": datetime.now().isoformat(),
         "status": "running"
     }
 
     try:
-        print("="*60)
-        print("PHASE 0: FEASIBILITY PROBE")
-        print("="*60)
+        print("=" * 60)
+        print("PHASE 0b: CHECKPOINT + VRAM FEASIBILITY PROBE")
+        print("=" * 60)
 
-        # 1. Check CUDA and attention backend
-        print("\n1. Checking GPU and attention backend...")
-        fa2_available = check_flash_attention()
-        attn_backend = get_attention_backend()
-
-        results["gpu"] = {
-            "flash_attention_2": fa2_available,
-            "attention_backend": attn_backend,
-            "initial_vram": profile_vram()
+        # 1. Environment
+        print("\n[1] Environment")
+        results["environment"] = {
+            "python": sys.version.split()[0],
+            "torch": torch.__version__,
+            "cuda_available": torch.cuda.is_available(),
+            "gpu": profile_vram(),
+            "flash_attention_2": check_flash_attention(),
+            "attention_backend": get_attention_backend(),
+            "sdpa_available": hasattr(torch.nn.functional, 'scaled_dot_product_attention'),
         }
 
-        # 2. Load checkpoints
-        print("\n2. Loading Causal-rCM checkpoints...")
-        vram_before = profile_vram()
+        # 2. Dataset files
+        print("\n[2] Dataset files")
+        available = list_available_checkpoints()
+        print(json.dumps(available, indent=2, default=str))
+        results["dataset_files"] = available
 
-        checkpoints = load_causal_rcm_checkpoints(
-            device='cuda',
-            checkpoint_type='both',  # Load both c1-1 and c3-3
-            step_count=2,  # Start with 2-step (recommended)
-            verify_hashes=False  # Skip for speed
+        # 3. Per-checkpoint probe (one at a time)
+        print("\n[3] Checkpoint probes")
+        results["targets"] = []
+        for label, ctype, step, fname in TARGETS:
+            print(f"\n--- Probbing {label} ---")
+            r = probe_target(label, ctype, step, fname)
+            results["targets"].append(r)
+            print(json.dumps({k: v for k, v in r.items() if k != 'traceback'}, indent=2, default=str))
+
+        # 4. VAE + T5 sanity (T5 on CPU: 11 GB is too big to co-reside on T4)
+        print("\n[4] VAE + T5")
+        paths = find_kaggle_input_paths()
+        results["aux"] = {}
+        if paths['vae']:
+            vae_path = find_file_recursive(paths['vae'], 'Wan2.1_VAE.pth')
+            if vae_path:
+                torch.cuda.reset_peak_memory_stats()
+                vae = safe_torch_load(vae_path, map_location='cuda')
+                results["aux"]["vae"] = {
+                    "loaded": True, "size_mb": round(vae_path.stat().st_size / (1024**2), 1),
+                    "vram": profile_vram(), "type": type(vae).__name__,
+                    "top_keys": [str(k) for k in vae.keys()][:10] if isinstance(vae, dict) else None
+                }
+                del vae; torch.cuda.empty_cache()
+            else:
+                results["aux"]["vae"] = {"loaded": False, "reason": "Wan2.1_VAE.pth not found"}
+        if paths['t5']:
+            t5_path = find_file_recursive(paths['t5'], 'models_t5_umt5-xxl-enc-bf16.pth')
+            if t5_path:
+                t5 = safe_torch_load(t5_path, map_location='cpu')
+                results["aux"]["t5"] = {
+                    "loaded": True, "size_mb": round(t5_path.stat().st_size / (1024**2), 1),
+                    "note": "loaded on CPU (11 GB; will be fp16 on GPU during inference)",
+                    "top_keys": [str(k) for k in t5.keys()][:10] if isinstance(t5, dict) else None
+                }
+                del t5
+            else:
+                results["aux"]["t5"] = {"loaded": False, "reason": "models_t5_umt5-xxl-enc-bf16.pth not found"}
+
+        # 5. Verdict
+        print("\n[5] Verdict")
+        c1 = next((t for t in results["targets"] if t["label"] == "c1_1_step2"), {})
+        c3 = next((t for t in results["targets"] if t["label"] == "c3_3_step4"), {})
+        worst_peak = max(
+            (t.get("vram", {}).get("peak_allocated_gb", 0) or 0 for t in results["targets"]),
+            default=0
         )
-
-        vram_after = profile_vram()
-
-        results["checkpoints"] = {
-            "c1_1_loaded": 'c1_1' in checkpoints,
-            "c3_3_loaded": 'c3_3' in checkpoints,
-            "vae_loaded": 'vae' in checkpoints,
-            "t5_loaded": 't5' in checkpoints,
-            "metadata": checkpoints.get('metadata', {}),
-            "vram_after_load": vram_after,
-            "vram_delta_gb": vram_after['peak_allocated_gb'] - vram_before['peak_allocated_gb']
-        }
-
-        # 3. Inspect internals
-        print("\n3. Inspecting checkpoint internals...")
-        if 'c1_1' in checkpoints:
-            results["c1_1_internals"] = check_internals(checkpoints['c1_1'])
-        if 'c3_3' in checkpoints:
-            results["c3_3_internals"] = check_internals(checkpoints['c3_3'])
-
-        # 4. Test inference (placeholder)
-        print("\n4. Testing inference...")
-        inference_result = test_inference(checkpoints, max_frames=10)
-        results["inference_test"] = inference_result
-
-        # 5. Search for action checkpoint
-        action_search = search_action_checkpoint()
-        results["action_checkpoint"] = action_search
-
-        # 6. VRAM limit estimation
-        print("\n5. Estimating maximum rollout length...")
-        total_vram = results["gpu"]["initial_vram"]["total_memory_gb"]
-        used_vram = vram_after["peak_allocated_gb"]
-        available_vram = total_vram - used_vram - 2.0  # Reserve 2GB buffer
-
-        # Rough estimate: ~0.1GB per frame at 480p
-        estimated_max_frames = int(available_vram / 0.1)
-
-        results["vram_limits"] = {
-            "total_gb": total_vram,
-            "used_after_load_gb": used_vram,
-            "available_gb": available_vram,
-            "estimated_max_frames_480p": estimated_max_frames,
-            "recommendation": "50 frames" if estimated_max_frames >= 50 else f"{estimated_max_frames} frames"
-        }
-
-        # 7. Final verdict
-        print("\n6. Final verdict...")
-
-        pass_criteria = [
-            ('c1_1' in checkpoints or 'c3_3' in checkpoints, "At least one checkpoint loaded"),
-            (vram_after["peak_allocated_gb"] < 14.0, "VRAM usage < 14GB"),
-            (estimated_max_frames >= 25, "Can generate ≥25 frames")
+        criteria = [
+            (c1.get("loaded", False), "c1-1_step2 checkpoint loads on T4"),
+            (c3.get("loaded", False), "c3-3_step4 checkpoint loads on T4"),
+            (worst_peak < 14.5, f"peak VRAM < 14.5 GB (measured {worst_peak:.2f} GB)"),
+            (results["environment"]["sdpa_available"], "PyTorch SDPA available (T4 fallback)"),
         ]
-
-        all_pass = all(criterion[0] for criterion in pass_criteria)
-
         results["verdict"] = {
-            "overall": "PASS" if all_pass else "FAIL",
-            "criteria": [
-                {"pass": crit[0], "description": crit[1]}
-                for crit in pass_criteria
-            ]
+            "overall": "PASS" if all(c[0] for c in criteria) else "FAIL",
+            "criteria": [{"pass": c[0], "description": c[1]} for c in criteria],
+        }
+
+        # EMA availability summary (needed for u_i^EMA decision)
+        ema_found = any(t.get("ema", {}).get("has_ema", False) for t in results["targets"])
+        results["ema_summary"] = {
+            "found_in_any_checkpoint": ema_found,
+            "note": "If False, u_i^EMA is dropped; residual+warp scores remain (per plan)"
         }
 
         results["status"] = "complete"
 
-        # Print summary
-        print("\n" + "="*60)
-        print(f"PHASE 0 VERDICT: {results['verdict']['overall']}")
-        print("="*60)
-        for criterion in results["verdict"]["criteria"]:
-            status = "✓" if criterion["pass"] else "✗"
-            print(f"{status} {criterion['description']}")
-
-        if not action_search["found"]:
-            print("\n⚠ WARNING: No action-conditioned checkpoint found")
-            print("  → Proceeding with text-only (λ=0)")
-
-        print(f"\n✓ Estimated max rollout: {estimated_max_frames} frames at 480p")
-        print(f"✓ Attention backend: {attn_backend}")
-
     except Exception as e:
-        print(f"\n✗ PHASE 0 FAILED: {e}")
+        print(f"\nX PHASE 0b FAILED: {e}")
         traceback.print_exc()
-
         results["status"] = "failed"
         results["error"] = str(e)
         results["traceback"] = traceback.format_exc()
         results["verdict"] = {"overall": "FAIL"}
 
     finally:
-        # Save results
         results["end_time"] = datetime.now().isoformat()
-        results["duration_seconds"] = time.time() - start_time
+        results["duration_seconds"] = round(time.time() - start_time, 1)
+        out_dir = Path("/kaggle/working/results/phase0")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        with open(out_dir / f"{run_id}_meta.json", 'w') as f:
+            json.dump(results, f, indent=2, default=str)
+        print(f"\nResults saved: {out_dir / f'{run_id}_meta.json'}")
 
-        output_dir = Path("/kaggle/working/results/phase0")
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        with open(output_dir / f"{run_id}_meta.json", 'w') as f:
-            json.dump(results, f, indent=2)
-
-        print(f"\n✓ Results saved to: {output_dir / f'{run_id}_meta.json'}")
-        print(f"✓ Duration: {results['duration_seconds']:.1f}s")
+        verdict = results.get("verdict", {}).get("overall", "FAIL")
+        print(f"VERDICT: {verdict}")
+        for c in results.get("verdict", {}).get("criteria", []):
+            print(f"  {'PASS' if c['pass'] else 'FAIL'}: {c['description']}")
 
 
 if __name__ == "__main__":

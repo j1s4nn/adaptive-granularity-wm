@@ -1,30 +1,27 @@
-## Day 1 Progress Report (Hour 2.5)
+# PROGRESS (corrected — tracks reality, not the optimistic Day-1 plan)
 
-**✓ Completed:**
-1. Git repo initialized with j1s4nn credentials
-2. Project structure created (6 Python packages)
-3. **ALL CORE PACKAGES IMPLEMENTED:**
-   - `src/causal_rcm/`: Checkpoint loading, inference wrapper, T4 fallback (done)
-   - `src/uncertainty/`: EMA, residual, warp scores + composite aggregator (done)
-   - `src/controller/`: Threshold policy + recovery mechanism (done)
-   - `src/baselines/`: Motion, complexity, random controllers (done)
-   - `src/evaluation/`: FVD, LPIPS, AUROC, switch cost metrics (done)
-   - `src/utils/`: Logging, figure styling, Kaggle I/O (done)
-4. Phase 0 probe script written (feasibility check)
-5. Phase 0 **RUNNING ON KAGGLE** (30+ minutes elapsed)
-   - URL: https://www.kaggle.com/code/ajjisan/adaptive-granularity-phase-0-feasibility
-   - Status: RUNNING
-   - Expected completion: ~10 more minutes
+## Phase 0a: environment + code probe — DONE (today)
+- Kaggle CLI 2.2.4 installed locally, authenticated as ajjisan (KGAT access_token)
+- Dataset contents verified remotely (see STATUS.md)
+- Fixed: src bundling, recursive checkpoint paths, torch.load weights_only fallback,
+  push_and_wait.py CLI 2.x compatibility
 
-**Next (final Hour 3-4 prep):**
-- Create E2-E5 job scripts (uncertainty calibration, adaptive controller, recovery, baselines)
-- Write figure generation scripts (12+ figures from MASTER_PLAN)
-- Prepare parallel job submission workflow
-- **Wait for Phase 0 results** → adjust E1 prompts/config if needed
+## Phase 0b: checkpoint + VRAM probe — RUNNING ON KAGGLE
+- Kernel: `ajjisan/phase-0b-checkpoint-vram-probe-t4` (pushed 16:15, RUNNING at 16:55)
+- Probe loads c1-1_step2 / c1-1_step4 / c3-3_step4 one at a time, profiles VRAM,
+  inspects internals (EMA), sanity-loads VAE (CUDA) + T5 (CPU), writes meta.json
+- Awaiting completion → download `results/phase0/`
 
-**Codebase stats:**
-- ~2500 lines Python across 15 files
-- 6 complete packages (inference, uncertainty, controller, baselines, evaluation, utils)
-- Ready for E1 submission once Phase 0 passes
+## Phase 0c: real inference test — NOT STARTED
+- Must clone NVlabs/rcm on Kaggle, implement `src/causal_rcm/inference.py`
+  (currently placeholders) against the repo, patch attention to SDPA for T4,
+  generate a 10-frame rollout, measure real VRAM/latency
 
-**Timeline:** Day 1, Hour 2.5 of 36 total. Phase 0 expected complete by Hour 3.
+## E1 baseline — NOT STARTED (blocked on Phase 0c)
+## E2/E3/E4/E5 — NOT STARTED
+
+## Known deviations from MASTER_PLAN
+1. No c1-1_step1 checkpoint exists → E1 fine modes are c1-1 step2 and step4
+2. Old phase0 kernels errored without running (no quota wasted, ~14s total)
+3. Phase 0 split into 0a/0b/0c because inference.py placeholders require
+   rcm-repo integration before real generation is possible
