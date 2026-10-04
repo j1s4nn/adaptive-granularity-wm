@@ -50,10 +50,10 @@ def push_kernel(job_dir: Path):
     shutil.rmtree(src_dest)
 
     if returncode != 0:
-        print(f"✗ Push failed: {stderr}")
+        print(f"[X] Push failed: {stderr}")
         return None
 
-    print(f"✓ Kernel pushed")
+    print(f"[OK] Kernel pushed")
     return stdout
 
 
@@ -90,22 +90,22 @@ def wait_for_completion(kernel_slug: str, timeout: int, poll_interval: int = 60)
         status = get_kernel_status(kernel_slug)
 
         if status is None:
-            print("  ⚠ Could not get status")
+            print("  [!] Could not get status")
             time.sleep(poll_interval)
             continue
 
         print(f"  Status: {status} (elapsed: {int(time.time() - start_time)}s)")
 
         if status == "complete":
-            print("✓ Kernel complete!")
+            print("[OK] Kernel complete!")
             return True
         elif status in ["error", "failed", "cancelled"]:
-            print(f"✗ Kernel {status}")
+            print(f"[X] Kernel {status}")
             return False
 
         time.sleep(poll_interval)
 
-    print(f"✗ Timeout after {timeout}s")
+    print(f"[X] Timeout after {timeout}s")
     return False
 
 
@@ -121,13 +121,13 @@ def main():
 
     job_dir = Path(args.job)
     if not job_dir.exists():
-        print(f"✗ Job directory not found: {job_dir}")
+        print(f"[X] Job directory not found: {job_dir}")
         sys.exit(1)
 
     # Read kernel metadata
     metadata_file = job_dir / "kernel-metadata.json"
     if not metadata_file.exists():
-        print(f"✗ kernel-metadata.json not found in {job_dir}")
+        print(f"[X] kernel-metadata.json not found in {job_dir}")
         sys.exit(1)
 
     with open(metadata_file) as f:
@@ -152,12 +152,12 @@ def main():
         print(f"Downloading output to {output_dir}...")
 
         if download_output(kernel_slug, output_dir):
-            print(f"✓ Output downloaded to {output_dir}")
+            print(f"[OK] Output downloaded to {output_dir}")
         else:
-            print("✗ Download failed")
+            print("[X] Download failed")
             sys.exit(1)
 
-    print("\n✓ Job complete!")
+    print("\n[OK] Job complete!")
 
 
 if __name__ == "__main__":
