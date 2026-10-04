@@ -1,71 +1,75 @@
 # STATUS: Day 1 (real state, corrected — previous STATUS.md was over-optimistic)
 
-**Last updated**: 2026-10-04 17:32 local
+**Last updated**: 2026-10-04 19:55 local
 
-## Phase 0b: COMPLETE — VERDICT: PASS
+## Phase 0c: COMPLETE — VERDICT: PASS (real inference works on T4)
 
-Kernel `ajjisan/phase-0b-minimal-probe-checkpoints-only` v3 (single-dataset, self-contained script).
-Results: `results/phase0/phase0b_minimal_v3/results/phase0/20261004_092703_meta.json`
+Kernel `ajjisan/phase-0c-real-causal-rcm-inference-test-on-t4` v7.
+Meta: `results/phase0/phase0c_v7/results/phase0c/20261004_114113/20261004_114113_meta.json`
+Keyframes: `results/phase0/phase0c_v7/results/phase0c/20261004_114113/frames/*.png`
 
-Findings:
-- **Env**: torch 2.11.0+cu128, Python 3.13.15, Tesla T4 (14.56 GB), FA2 unavailable (expected),
-  PyTorch SDPA available → use SDPA fallback, fp16 (no bf16 on T4)
-- **c3-3_step4**: loads OK, 72.8 s, 2706.8 MB, peak VRAM 2.64 GB
-- **c1-1_step2**: loads OK, 71.8 s, 2706.8 MB, peak VRAM 2.64 GB
-- **Checkpoint structure**: plain Wan2.1 DiT state_dict (keys `net.patch_embedding`, `net.blocks.0-29.*`,
-  self_attn + cross_attn + ffn + modulations, `net.head.*`). Matches Wan2.1-1.3B T2V.
-- **NO EMA weights in either checkpoint** → u_i^EMA DROPPED per pre-registered plan;
-  uncertainty = residual + warp scores only (update E2 accordingly)
-- Dataset mount path pattern: `/kaggle/input/datasets/ajjisan/<dataset>/<subfolder>/...`
-  → ALWAYS search files recursively, never assume a fixed mount path
+Measured on T4 (fp16, SDPA, 480p 16:9):
+- **c1-1 frame-wise 1-step** (c1-1_step2 ckpt, steps_per_chunk "4 1"): DiT 4.5 s,
+  peak VRAM 4.05 GB, VAE decode 25.5 s (13 frames) — OK
+- **c3-3 chunk-wise 4-step** (c3-3_step4 ckpt, chunks [3,3]): DiT 14.3 s,
+  peak VRAM 4.73 GB, VAE decode 46.6 s (21 frames) — OK
+- Env: torch 2.11.0+cu128, Python 3.13.15, Tesla T4, SDPA (no FA2), fp16 everywhere
 
-## Lessons learned (Kaggle plumbing)
-1. Kaggle script kernels upload ONLY the code file — bundling src/ does NOT work.
-   All job scripts must be SELF-CONTAINED single files.
-2. `kaggle kernels push -p <folder>`: id/title must slugify consistently or you get
-   409 Conflict. Match id to the title-derived slug exactly for version updates.
-3. Attaching the 11 GB T5 + 5.7 GB DiT datasets made a kernel hang 70+ min;
-   single-dataset (ckpts only, ~6 GB) runs in ~4 min. Attach only what a job needs,
-   or budget for long mounts.
-4. `kaggle kernels delete <slug>` (confirm with `echo yes |`) kills a stuck session.
-5. CLI 2.x status strings: `KernelWorkerStatus.RUNNING/COMPLETE/ERROR` — push_and_wait.py fixed.
+## WORKING RECIPE (the exact procedure that works — reuse for E1-E5)
+1. Script kernels are SINGLE-FILE only (no src/ bundling). All job scripts self-contained.
+2. pip deps: einops transformers sentencepiece ftfy regex imageio imageio-ffmpeg tqdm
+   torchvision fvcore omegaconf attrs pyyaml iopath termcolor pynvml pandas loguru
+   safetensors cloudpickle dill matplotlib packaging
+3. `git clone --depth 1 https://github.com/NVlabs/rcm.git /kaggle/working/rcm`
+4. Patch rcm/inference/wan2pt1_t2v_causal_infer.py: TENSOR_KWARGS dtype bf16 -> fp16,
+   `.to(dtype=torch.bfloat16)` -> fp16 (2 places).
+5. Patch rcm/utils/umt5.py: default dtype bf16 -> fp16; tokenizer_path -> LOCAL dataset dir
+   `/kaggle/input/datasets/ajjisan/wan21-t5/wan21_t5/google/umt5-xxl`.
+6. Set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` BEFORE torch import
+   (fixes VAE-decode OOM from fragmentation) and `TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1`.
+7. DiT: `init_weights_on_device()` -> instantiate 1.3B WanModel -> `load_dit_weights`
+   (strips net. prefix, assign=True) -> `.to(cuda, fp16).cpu()` until sampling.
+8. T5 (the tricky part — umT5-XXL bf16 is 11.4 GB):
+   - build `umt5_xxl(encoder_only=True)` normally on CPU (fp32 transient ~22 GB RAM is OK),
+     then `.to(fp16)` (11.2 GB RAM)
+   - `easy_io.load(t5_path, file_format="pt", map_location="cuda", weights_only=False)`
+   - cast every tensor to fp16 IN PLACE on GPU, `load_state_dict(strict=False, assign=True)`
+     (params become GPU tensors with no copy)
+   - encode prompt, then `del model + empty_cache`
+9. Sampling: build t_steps (sigma_max=1600, mid_t 15/16 5/6 5/8), per-chunk schedules,
+   `causal_rollout_sampling(net, noise, t_steps, t_steps_per_chunk, steps_per_chunk,
+   condition, None, 1.0, first_chunk_t, chunk_t, ode=False, generator=...)`.
+10. VAE decode AFTER `del net + empty_cache`.
+11. Configs verified:
+    - c1-1 1-step: ckpt c1-1_step2, steps_per_chunk=[4,1], mid_t_schedules "15/16,5/6,5/8;"
+    - c1-1 2-step: ckpt c1-1_step2, steps_per_chunk=[4,2], "15/16,5/6,5/8;5/6"
+    - c1-1 4-step: ckpt c1-1_step4, num_steps=4, mid_t "15/16 5/6 5/8"
+    - c3-3 4-step: ckpt c3-3_step4, first_chunk_t=3, chunk_t=3, num_steps=4, mid_t "15/16 5/6 5/8"
+12. Latent frames T = 1 + (num_pixels-1)//4; for c3-3 need (T-3) % 3 == 0
+    (e.g. num_frames 21 -> T=6; for 50 frames T=13 -> (13-3)%3=1 INVALID!
+    c3-3 needs num_frames s.t. T-3 divisible by 3: T in {6,9,12,15,...} ->
+    num_frames in {21,33,45,57,...}; for E1 use 10/25/50 c1-1 and matched ~21/33/45 c3-3,
+    or trim frames post-hoc for metric alignment)
 
-## VRAM arithmetic for Phase 0c (REAL RISK)
-T5-XXL encoder bf16 = 11.36 GB; model 2.64 GB; VAE 0.5 GB → 14.5 GB > 14.56 total.
-Mitigation options: encode text on CPU then unload T5, or int8 T5, or batch=1 fp16
-with VAE offloaded. Phase 0c must measure this exactly.
+## Phase 0b (earlier today): PASS
+c1-1_step2 + c3-3_step4 load (2.71 GB each, 72 s), NO EMA weights (u_i^EMA dropped),
+Wan2.1 DiT state_dict structure confirmed. `results/phase0/phase0b_minimal_v3/...`
 
-## Next: Phase 0c — real inference test (rcm repo integration)
-- Clone https://github.com/NVlabs/rcm ON KAGGLE (code only; no HF model downloads — checkpoints
-  come from our datasets)
-- Repo expects FA2 + transformer-engine + Python 3.12 → on Kaggle we get torch 2.11/3.13:
-  patch attention to SDPA, disable TE, fp16
-- Target: one 10-frame rollout per checkpoint, measure VRAM + latency, save 3 keyframes
-- `src/causal_rcm/inference.py` placeholders must be rewritten against the actual repo
-  after we see how generation works
+## Phase 0c failure history (all fixed, for the record)
+v1 fvcore missing -> v2 loguru -> v3 GPU OOM (T5 built fp32 on GPU) -> v4 RAM OOM
+("Killed": 11.4 GB ckpt + 11.2 GB model on CPU) -> v5 meta-device .to() clash ->
+v6: generation WORKED; VAE decode OOM (fragmentation) + frame-shape bug -> v7 PASS
+(expandable_segments + batch-squeeze fix)
 
-## What failed before (fixed today)
-1. Both old phase0 kernels errored in ~7s: `ModuleNotFoundError: No module named 'src'`
-   (src/ not uploaded — script kernels take only the code file)
-2. First relaunch hung 70+ min (3 datasets attached → huge mount copy), killed via delete
-3. v2 probe: mount-path guessing failed (files nested under `datasets/ajjisan/...`),
-   plus a verdict f-string bug on empty lists → both fixed in v3
+## Next: E1 fixed-mode baseline (needs user approval before submitting)
+4 parallel T4 jobs: c1-1 S=1, c1-1 S=2, c1-1 S=4, c3-3 S=4; 100 VBench prompts x 3 seeds x
+10/25/50 frames (c3-3 frame counts adjusted for chunk divisibility).
+Prompts file: rcm repo already ships `evaluation/vbench_text2video/prompts.json` (140 prompts).
 
-## Environment facts (verified today)
-- Kaggle CLI 2.2.4 (pip, Python 3.14, `C:\Users\jisan\AppData\Roaming\Python\Python314\Scripts`)
-- Auth: `~/.kaggle/access_token` (KGAT). Works against account **ajjisan**.
-- `~/.kaggle/credentials.json.j1s4nn` — DO NOT USE (user wants ajjisan only)
-- Git: no remote configured yet (repo exists at github.com/j1s4nn/adaptive-granularity-wm)
-
-## Dataset contents (verified)
-- `ajjisan/causal-rcm-ckpts`: c1-1_step2/step4, c3-3_step2, c3-3_step2_noisy_ctx,
-  c3-3_step4, TF-sCM c3-3_step4, umT5_wan_negative_emb.pt (no c1-1_step1)
-- `ajjisan/wan21-t5`: models_t5_umt5-xxl-enc-bf16.pth (11.36 GB) + google/umt5-xxl tokenizer
-- `ajjisan/wan21-dit-vae`: Wan2.1_VAE.pth (507 MB), diffusion_pytorch_model.safetensors (5.67 GB), config.json
-
-## Hard constraints (CLAUDE.md)
-- Kaggle account ajjisan; never read/print/commit credential file contents
-- No HF model downloads inside jobs; no HF downloads on this PC
-- Jobs ≤3h unless split; resumable (append results.jsonl, skip finished)
-- All three datasets must be listed in every kernel-metadata.json (if attached)
-- T4 only, fp16 only
+## Kaggle plumbing (verified today)
+- CLI 2.2.4, account ajjisan, KGAT access_token auth
+- Script kernels upload ONLY the code file; id must slugify to title (else 409)
+- `kaggle kernels delete <slug>` (echo yes |) kills stuck sessions
+- Status strings: KernelWorkerStatus.{RUNNING,COMPLETE,ERROR}
+- Mount path: /kaggle/input/datasets/ajjisan/<dataset>/... (search recursively)
+- Single-dataset mounts ~2 min; 3-dataset mounts can be slow (10+ min)
