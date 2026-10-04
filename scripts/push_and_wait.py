@@ -1,0 +1,164 @@
+"""
+Push and Wait Script
+====================
+
+Automates Kaggle job submission and polling.
+
+Usage:
+    python scripts/push_and_wait.py --job jobs/phase0 --timeout 7200
+    python scripts/push_and_wait.py --job jobs/e1_baseline --parallel 4
+"""
+
+import argparse
+import subprocess
+import time
+import json
+import sys
+from pathlib import Path
+from datetime import datetime
+
+
+def run_command(cmd, cwd=None):
+    """Run shell command and return output."""
+    result = subprocess.run(
+        cmd,
+        shell=True,
+        cwd=cwd,
+        capture_output=True,
+        text=True
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+def push_kernel(job_dir: Path):
+    """Push Kaggle kernel."""
+    print(f"Pushing kernel from {job_dir}...")
+
+    # Copy src/ into job directory temporarily
+    import shutil
+    src_dest = job_dir / "src"
+    if src_dest.exists():
+        shutil.rmtree(src_dest)
+    shutil.copytree("src", src_dest)
+
+    returncode, stdout, stderr = run_command(
+        "kaggle kernels push --accelerator GPU-T4",
+        cwd=job_dir
+    )
+
+    # Clean up
+    shutil.rmtree(src_dest)
+
+    if returncode != 0:
+        print(f"✗ Push failed: {stderr}")
+        return None
+
+    print(f"✓ Kernel pushed")
+    return stdout
+
+
+def get_kernel_status(kernel_slug: str):
+    """Check kernel status."""
+    returncode, stdout, stderr = run_command(
+        f"kaggle kernels status {kernel_slug}"
+    )
+
+    if returncode != 0:
+        return None
+
+    return stdout.strip()
+
+
+def download_output(kernel_slug: str, output_dir: Path):
+    """Download kernel output."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    returncode, stdout, stderr = run_command(
+        f"kaggle kernels output {kernel_slug} -p {output_dir}"
+    )
+
+    return returncode == 0
+
+
+def wait_for_completion(kernel_slug: str, timeout: int, poll_interval: int = 60):
+    """Poll kernel until complete or timeout."""
+    start_time = time.time()
+
+    print(f"Waiting for {kernel_slug} (timeout={timeout}s)...")
+
+    while (time.time() - start_time) < timeout:
+        status = get_kernel_status(kernel_slug)
+
+        if status is None:
+            print("  ⚠ Could not get status")
+            time.sleep(poll_interval)
+            continue
+
+        print(f"  Status: {status} (elapsed: {int(time.time() - start_time)}s)")
+
+        if status == "complete":
+            print("✓ Kernel complete!")
+            return True
+        elif status in ["error", "failed", "cancelled"]:
+            print(f"✗ Kernel {status}")
+            return False
+
+        time.sleep(poll_interval)
+
+    print(f"✗ Timeout after {timeout}s")
+    return False
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Push Kaggle kernel and wait for completion")
+    parser.add_argument("--job", type=str, required=True, help="Job directory (e.g., jobs/phase0)")
+    parser.add_argument("--timeout", type=int, default=7200, help="Timeout in seconds")
+    parser.add_argument("--poll", type=int, default=60, help="Poll interval in seconds")
+    parser.add_argument("--download", action="store_true", help="Download output when complete")
+    parser.add_argument("--parallel", type=int, default=1, help="Number of parallel jobs (not implemented yet)")
+
+    args = parser.parse_args()
+
+    job_dir = Path(args.job)
+    if not job_dir.exists():
+        print(f"✗ Job directory not found: {job_dir}")
+        sys.exit(1)
+
+    # Read kernel metadata
+    metadata_file = job_dir / "kernel-metadata.json"
+    if not metadata_file.exists():
+        print(f"✗ kernel-metadata.json not found in {job_dir}")
+        sys.exit(1)
+
+    with open(metadata_file) as f:
+        metadata = json.load(f)
+
+    kernel_slug = metadata["id"]
+
+    # Push kernel
+    push_result = push_kernel(job_dir)
+    if push_result is None:
+        sys.exit(1)
+
+    # Wait for completion
+    success = wait_for_completion(kernel_slug, args.timeout, args.poll)
+
+    if not success:
+        sys.exit(1)
+
+    # Download output
+    if args.download:
+        output_dir = Path(f"results/{job_dir.name}")
+        print(f"Downloading output to {output_dir}...")
+
+        if download_output(kernel_slug, output_dir):
+            print(f"✓ Output downloaded to {output_dir}")
+        else:
+            print("✗ Download failed")
+            sys.exit(1)
+
+    print("\n✓ Job complete!")
+
+
+if __name__ == "__main__":
+    main()
