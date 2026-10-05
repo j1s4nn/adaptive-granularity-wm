@@ -267,6 +267,11 @@ def main():
                 # an empty spec means the default schedule list is used.
                 schedule_spec, mid = "", [15 / 16, 5 / 6, 5 / 8]
             t_steps, schedules = t_schedule(num_steps, steps, schedule_spec)
+            # The one-step c1 continuation uses the helper's default midpoint;
+            # pass no per-chunk schedule explicitly to satisfy its one-entry
+            # steps_per_chunk contract.
+            if mode == "c1-1":
+                schedules = []
             total_t = 1 + remaining_t
             _, blocks, _ = make_block_pattern(total_t, latent_h, latent_w, first_chunk_t, chunk_t,
                                                net.get_spatial_patch_size())
