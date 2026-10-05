@@ -303,7 +303,7 @@ def main():
         results["tests"] = tests
         ok = [t for t in tests if t.get("ok")]
         results["verdict"] = {
-            "overall": "PASS" if len(ok) == 2 else ("PARTIAL" if len(ok) == 1 else "FAIL"),
+            "overall": "PASS" if len(ok) == len(tests) else ("PARTIAL" if len(ok) else "FAIL"),
             "n_passed": len(ok),
             "n_total": len(tests),
             "protocol": {"prompts": PROMPTS, "seed": SEED,

@@ -1,4 +1,4 @@
-﻿# STATUS: Phase 1a/1b complete 鈥?operational plan v2 locked
+# STATUS: Phase 2 fixed-mode baseline complete 鈥?operational plan v2 locked
 
 **Last updated**: 2026-10-05
 
@@ -6,7 +6,24 @@
 
 The original three-day/86-GPU-hour plan is superseded by the Operational Master Plan v2 at the top of `MASTER_PLAN.md`. The remaining paper will focus on the proposal's core contribution: uncertainty-guided switching between matched Causal-rCM c1-1 and c3-3 modes, with recovery and hysteresis. The verified setup is text-to-video, so `lambda_action=0` and action conditioning is a documented future extension.
 
-Phase 0 (planning and feasibility) is complete. **Phase 1a/1b is now complete; the next phase is the fixed-mode baseline.**
+Phase 0 and Phase 1a/1b are complete. **Phase 2 fixed-mode baseline is complete; next is Phase 3 signal calibration.**
+
+## Phase 2 audit - PASS for exploratory fixed-mode baseline
+
+| Measure | c1-1 | c3-3 | Interpretation |
+|---|---:|---:|---|
+| Successful runs | 6/6 | 6/6 | Paired over 2 prompts, 1 seed, 21/33/45 frames |
+| Mean DiT sampling time | 10.217 s | 24.027 s | c1-1 DiT sampling faster in this small pilot |
+| Mean DiT+VAE generation time | 84.260 s | 100.550 s | c1-1 19.3% lower in pilot; excludes load/text setup |
+| Mean NFE across horizons | 12 | 12 | Sum of recorded chunk steps; matched on average |
+| Mean VAE decode time | 74.043 s | 76.523 s | Decode dominates end-to-end generation time |
+| Mean adjacent-frame pixel L1 | 0.023899 | 0.024206 | Descriptive variation proxy; not perceptual quality |
+| Mean proxy 1/(1+L1) | 0.976769 | 0.976456 | Descriptive only; no quality superiority claim |
+| Maximum peak allocated VRAM | 6.214 GB | 6.355 GB | Observed across tested conditions |
+
+Run metadata: `results/phase2_baseline/results/phase2_baseline/20261005_042507/20261005_042507_meta.json`. Summary tables: `baseline_summary.csv`, `baseline_metrics.csv`, and `phase2_audit.json`. All 12 frame pairs were saved. The raw Kaggle metadata carries an incorrect FAIL label from a hard-coded two-run pass threshold. Independent audit confirms 12/12 successful entries; see `phase2_audit.json`. The source verdict logic is fixed locally, syntax-checked, and not yet rerun on Kaggle.
+
+Limitations: only two prompts and one seed; no confidence interval can substantiate the 0.1% target. Per-condition `dit_s` and `vae_s` exclude model loading and prompt encoding. Phase 1 measured model-load time separately, but Phase 2 end-to-end latency remains incomplete until those costs are added. No reference video exists, so no FVD/PSNR/reference LPIPS is reported.
 
 ## Phase 1a/1b audit - PASS with stated limitation
 
@@ -19,7 +36,7 @@ Phase 0 (planning and feasibility) is complete. **Phase 1a/1b is now complete; t
 | KV-state persistence | UNAVAILABLE | API exposes no KV cache; checkpoint reload is measured |
 | Quality superiority/seam quality | NOT CLAIMED | feasibility smoke test only |
 
- **Do not repeat Phase 0.** Phase 1a/1b is complete; the next phase is the fixed-mode baseline.
+ **Do not repeat Phase 0.** Phase 1a/1b and Phase 2 are complete; next is Phase 3 signal calibration.
 
 ## Phase 0 audit
 
@@ -32,14 +49,16 @@ Phase 0 (planning and feasibility) is complete. **Phase 1a/1b is now complete; t
 | EMA weights | UNAVAILABLE | Phase 0b metadata; remove `u_ema` |
 | Action-conditioned interface | UNVERIFIED/UNAVAILABLE | No action checkpoint in verified datasets |
 | Runtime c1-1鈫攃3-3 switching | VERIFIED | Phase 1b smoke test; quality remains for later phases |
-| Real E1 metrics | NOT STARTED | Current E1 script contains placeholders |
+| Fixed-mode baseline | COMPLETE, EXPLORATORY | Phase 2 metadata and summary; 2 prompts × 1 seed |
+| Real E1 quality metrics | LIMITED | Temporal pixel-difference proxy only; no reference-based metric |
+| Phase 2 temporal proxy | RECORDED | Descriptive only; no reference-based quality score |
 
-## Proposal coverage after audit
+## Proposal coverage after Phase 2 audit
 
 | Proposal component | Status |
 |---|---|
 | RQ1: uncertainty vs motion/complexity | Planned with residual/warp only |
-| RQ2: adaptive fine/coarse switching | Core; blocked only by switch smoke test |
+| RQ2: adaptive fine/coarse switching | Switching feasible and fixed baselines measured; adaptive comparison pending |
 | RQ3: recovery + hysteresis | Planned |
 | RQ4: uncertainty鈥揵enefit relationship | Exploratory reanalysis planned |
 | Action-augmented potential | Deferred; `lambda=0` |
@@ -53,7 +72,7 @@ Phase 0 (planning and feasibility) is complete. **Phase 1a/1b is now complete; t
 3. No random frames or placeholder metrics remain in the submitted E1 path.
 4. Kaggle outputs are resumable, small, and linked here.
 
-After these criteria are met, stop and audit before Phase 2.
+Phase 1 acceptance criteria were met. Phase 2 produced its fixed-mode exploratory baseline. Continue only with Phase 3 after this audit.
 
 # Historical status below
 

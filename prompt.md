@@ -1,4 +1,4 @@
-﻿# Continuation Prompt 鈥?Adaptive Granularity WM
+# Continuation Prompt 鈥?Adaptive Granularity WM
 
 You are continuing the research project in:
 
@@ -58,17 +58,22 @@ Proposal coverage: runtime switching feasibility and speed accounting are covere
 
 ## Phase state
 
-Current phase: **Phase 2 - fixed-mode baseline**
+## Completed Phase 2 audit
+
+Phase 2 completed on 2026-10-05: 12/12 real fixed-mode generations passed on Kaggle Tesla T4 (2 prompts × 1 seed × 21/33/45 frames × c1-1/c3-3). Metadata: `results/phase2_baseline/results/phase2_baseline/20261005_042507/20261005_042507_meta.json`; summaries are in the same folder. Mean DiT sampling: c1-1 10.217 s, c3-3 24.027 s. Mean DiT+VAE time was 84.260 s vs 100.550 s (19.3% lower for c1-1, excluding model loading and prompt encoding). Mean recorded NFE was 12 for each mode across the three horizons. Mean decoded adjacent-pixel L1: 0.023899 and 0.024206; interpret as motion/content-dependent variation only, not perceptual quality. VAE dominates runtime. Per-condition timing excludes checkpoint load and prompt encoding; do not claim full end-to-end latency until those are added. Two prompts and one seed cannot resolve the 0.1% target. The hard-coded pass-count bug is documented in `phase2_audit.json`; the raw Kaggle metadata remains unchanged. Source verdict logic is corrected locally but has not been rerun on Kaggle.
+
+Proposal coverage: fixed-mode fine/coarse pilot and temporal variation captured; quality superiority not established; adaptive uncertainty is Phase 3; recovery/hysteresis is later; action remains deferred (`lambda_action=0`).
+
+Current phase: **Phase 3 - signal calibration**
 
 Next required evidence:
 
-- real runner derived from `jobs/phase0c/phase0c_infer.py`;
-- nested Kaggle mount discovery;
-- resumable job metadata and output;
-- one valid runtime switch sequence or a documented switch failure;
-- measured switching overhead and context/latent alignment status.
+- calibrate residual/denoising-discrepancy and warp signals on designated prompts;
+- include motion and complexity baselines where feasible;
+- keep calibration separate from held-out evaluation;
+- report signal distributions and uncertainty ranking without overclaiming quality gains.
 
-Phase 1 is complete. Begin Phase 2 after this audit; preserve the audit result and links to artifacts.
+Phase 2 is complete at exploratory pilot scale. Begin Phase 3 after this audit; preserve this audit and artifact links.
 
 ## GitHub workflow
 

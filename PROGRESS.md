@@ -1,4 +1,4 @@
-﻿# PROGRESS 鈥?operational plan v2
+# PROGRESS 鈥?operational plan v2
 
 ## Phase 0: feasibility and plan audit 鈥?COMPLETE
 
@@ -33,7 +33,30 @@ Required before any E1/E2/E3 claim:
 
 Artifact: `results/phase1_switch_v2_dl/results/phase1_switch/20261005_031931/20261005_031931_meta.json`.
 
-## Next phase: Phase 2 fixed-mode baseline
+## Phase 2: fixed-mode baseline - COMPLETE (exploratory)
+
+- Ran real c1-1 and c3-3 T4 inference for 2 prompts, 1 seed, and aligned 21/33/45-frame horizons (12 successful generations).
+- Recorded per-condition DiT time, VAE time, peak VRAM, latent/frame variation, and saved first/last frames.
+- Found and corrected a hard-coded two-run verdict condition; the raw Kaggle metadata is preserved, while `phase2_audit.json` records the independently verified 12/12 result. Corrected source was syntax-checked but not rerun remotely.
+- Added reproducible per-run and aggregated CSV summaries under `results/phase2_baseline/results/phase2_baseline/20261005_042507/`.
+- Findings are descriptive only: c1-1 DiT sampling averaged 10.217 s vs 24.027 s for c3-3; mean DiT+VAE generation was 84.260 s vs 100.550 s (19.3% lower for c1-1, excluding load/text setup); VAE decode dominates. Pixel L1 is content/motion dependent and cannot establish quality superiority.
+- Limitation: checkpoint load and text encoding are absent from Phase 2 per-condition timing; include these before end-to-end latency claims. Sample size is too small to resolve a 0.1% target.
+
+### Proposal coverage audit
+
+| Proposal item | Phase 2 evidence/status |
+|---|---|
+| Fixed fine vs fixed coarse | Covered at pilot scale, matched prompts/seeds/horizons |
+| Quality improvement | Not established; no reference metric and proxy is descriptive |
+| Temporal behavior | Adjacent decoded-pixel and latent L1 recorded; motion-confounded |
+| Speed/compute | DiT/VAE and VRAM measured; checkpoint/text setup overhead still to incorporate |
+| Adaptive uncertainty | Not covered; Phase 3 |
+| Recovery/hysteresis | Not covered; later controller phase |
+| Action conditioning | Deferred; `lambda_action=0` |
+
+Metadata: `results/phase2_baseline/results/phase2_baseline/20261005_042507/20261005_042507_meta.json`.
+
+## Next phase: Phase 3 signal calibration
 
 After every phase, update `MASTER_PLAN.md`, `STATUS.md`, `PROGRESS.md`, and `prompt.md`, record proposal coverage/deviations, give a compact audit table, and stop before the next phase.
 

@@ -1,4 +1,4 @@
-﻿# OPERATIONAL MASTER PLAN v2 鈥?TWO-DAY PAPER COMPLETION
+# OPERATIONAL MASTER PLAN v2 鈥?TWO-DAY PAPER COMPLETION
 
 > **Status:** This operational plan supersedes the original three-day execution schedule below. The original plan is retained as design history; do not execute its 86-GPU-hour schedule, its placeholder E1 implementation, or its action-conditioned assumptions.
 
@@ -53,6 +53,8 @@ Use the proven single-file Phase 0c runner as the source of truth. Replace the p
 
 Use a small but real held-out prompt set and common valid horizons (21/33/45 frames for c3-3 alignment). Run fixed c1-1 schedules and c3-3 step-4. Compute real timing, NFE, memory, temporal stability, and the selected quality proxy. Produce fixed-mode comparison data and fine-preferred labels. **Stop for audit.**
 
+**Phase 2 status: COMPLETE (exploratory baseline).** On a Tesla T4, 2 prompts × 1 seed × 3 aligned horizons × 2 fixed modes yielded 12/12 successful real generations. Artifacts: `results/phase2_baseline/results/phase2_baseline/20261005_042507/`. Mean DiT sampling was 10.217 s for c1-1 and 24.027 s for c3-3; mean DiT+VAE time was 84.260 s and 100.550 s (19.3% lower for c1-1 in this pilot, excluding model/text setup); mean decoded-frame adjacent-pixel L1 was 0.023899 and 0.024206 respectively. These are descriptive results only: the pixel-difference proxy is motion/content dependent, and does not establish perceptual quality or a statistically supported gain. DiT/VAE timings omit checkpoint load and text encoding; account for them separately before making end-to-end latency claims. No FVD, PSNR, or LPIPS is reported.
+
 ### Phase 3 鈥?E2 signal calibration
 
 Compute residual/denoising-discrepancy and warp signals before each segment, plus motion and complexity baselines. Fit thresholds only on calibration prompts and report held-out AUROC with bootstrap intervals. Drop EMA and any unavailable action term. **Stop for audit.**
@@ -70,7 +72,7 @@ Evaluate R=0 versus one or two recovery lengths. Add motion and complexity end-t
 | Proposal item | Operational status |
 |---|---|
 | RQ1 uncertainty vs motion/complexity | In scope; residual/warp only, EMA removed |
-| RQ2 runtime fine/coarse switching | Core; requires switch smoke test |
+| RQ2 runtime fine/coarse switching | Switching feasibility verified in Phase 1; fixed-mode pilot in Phase 2; adaptive comparison pending |
 | RQ3 recovery + hysteresis | In scope |
 | RQ4 uncertainty鈥揵enefit relationship | In scope as exploratory reanalysis |
 | Action-augmented potential | Not testable; lambda=0 and documented deviation |
