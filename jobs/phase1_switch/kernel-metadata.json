@@ -1,6 +1,6 @@
 {
-  "id": "ajjisan/phase-1-runtime-switch-smoke-test-v2",
-  "title": "Phase 1 Runtime Switch Smoke Test",
+  "id": "ajjisan/phase-1-runtime-switch-smoke-test",
+  "title": "Phase 1 Runtime Switch Smoke Test v2",
   "code_file": "phase1_switch.py",
   "language": "python",
   "kernel_type": "script",
