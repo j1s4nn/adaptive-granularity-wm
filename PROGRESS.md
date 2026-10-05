@@ -1,4 +1,31 @@
-# PROGRESS (corrected — tracks reality, not the optimistic Day-1 plan)
+# PROGRESS — operational plan v2
+
+## Phase 0: feasibility and plan audit — COMPLETE
+
+- Read the proposal without using its timeline as an execution constraint.
+- Confirmed the core paper contribution is runtime fine/coarse switching, not action control.
+- Locked text-only scope with `lambda_action=0` because the verified checkpoints expose no action interface.
+- Reused all Phase 0b/0c artifacts; no Phase 0 rerun is authorized or needed.
+- Replaced the original 86-GPU-hour plan with the two-day reduced plan at the top of `MASTER_PLAN.md`.
+- Created `prompt.md` with project paths, Kaggle dataset links, GitHub link, safety rules, phase state, and audit protocol.
+- Kept GitHub repository name `j1s4nn/adaptive-granularity-wm`; it is clear and professional.
+
+## Phase 1: infrastructure correction and runtime-switch smoke test — NEXT
+
+Required before any E1/E2/E3 claim:
+
+- port the proven single-file Phase 0c inference recipe into a real resumable experiment runner;
+- fix nested Kaggle mount discovery;
+- remove dummy inference and metric paths from the E1 execution route;
+- run c1-1 → c3-3 → c1-1 with context/latent alignment checks;
+- measure switching and controller overhead;
+- save a reproducible pass/fail artifact and stop for audit.
+
+## Audit rule
+
+After every phase, update `MASTER_PLAN.md`, `STATUS.md`, `PROGRESS.md`, and `prompt.md`, record proposal coverage/deviations, give a compact audit table, and stop before the next phase.
+
+# Historical progress below
 
 ## Phase 0a: environment + code probe — DONE
 - Kaggle CLI 2.2.4 installed locally, authenticated as ajjisan (KGAT access_token)
@@ -34,4 +61,3 @@
 4. Kaggle script kernels are single-file only → self-contained job scripts
 5. VAE decode is the latency bottleneck on T4 (25-47s); E1 must budget for it
    (decode after del net + expandable_segments to avoid fragmentation OOM)
-

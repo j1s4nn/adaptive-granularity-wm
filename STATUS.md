@@ -1,4 +1,48 @@
-# STATUS: Day 1 (real state, corrected — previous STATUS.md was over-optimistic)
+# STATUS: Phase 0 complete — operational plan v2 locked
+
+**Last updated**: 2026-10-05
+
+## Current execution state
+
+The original three-day/86-GPU-hour plan is superseded by the Operational Master Plan v2 at the top of `MASTER_PLAN.md`. The remaining paper will focus on the proposal's core contribution: uncertainty-guided switching between matched Causal-rCM c1-1 and c3-3 modes, with recovery and hysteresis. The verified setup is text-to-video, so `lambda_action=0` and action conditioning is a documented future extension.
+
+Phase 0 (planning and feasibility) is complete. **Do not repeat Phase 0.** The next phase is infrastructure correction plus one real c1-1 → c3-3 → c1-1 switch smoke test.
+
+## Phase 0 audit
+
+| Item | Result | Evidence |
+|---|---|---|
+| c1-1/c3-3 checkpoint loading | PASS | `results/phase0/phase0b_minimal_v3/.../20261004_092703_meta.json` |
+| Real c1-1 inference on T4 | PASS | `results/phase0/phase0c_v7/.../frames/` |
+| Real c3-3 inference on T4 | PASS | `results/phase0/phase0c_v7/.../frames/` |
+| fp16 + SDPA fallback | PASS | Phase 0c logs |
+| EMA weights | UNAVAILABLE | Phase 0b metadata; remove `u_ema` |
+| Action-conditioned interface | UNVERIFIED/UNAVAILABLE | No action checkpoint in verified datasets |
+| Runtime c1-1↔c3-3 switching | NOT TESTED | Required in Phase 1 |
+| Real E1 metrics | NOT STARTED | Current E1 script contains placeholders |
+
+## Proposal coverage after audit
+
+| Proposal component | Status |
+|---|---|
+| RQ1: uncertainty vs motion/complexity | Planned with residual/warp only |
+| RQ2: adaptive fine/coarse switching | Core; blocked only by switch smoke test |
+| RQ3: recovery + hysteresis | Planned |
+| RQ4: uncertainty–benefit relationship | Exploratory reanalysis planned |
+| Action-augmented potential | Deferred; `lambda=0` |
+| Camera-controlled world model | Deferred; verified backbone is text-to-video |
+| E5 CF/CF++ transfer | Optional and cannot block the paper |
+
+## Phase 1 acceptance criteria
+
+1. The runner is based on the proven Phase 0c recipe, not the dummy `src` wrapper.
+2. A real switch sequence either succeeds with aligned context or produces a reproducible failure report.
+3. No random frames or placeholder metrics remain in the submitted E1 path.
+4. Kaggle outputs are resumable, small, and linked here.
+
+After these criteria are met, stop and audit before Phase 2.
+
+# Historical status below
 
 **Last updated**: 2026-10-04 19:55 local
 

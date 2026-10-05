@@ -56,17 +56,33 @@ def find_kaggle_input_paths() -> Dict[str, Path]:
     }
 
     if not kaggle_input.exists():
-        # Local testing fallback
         return paths
 
-    for item in kaggle_input.iterdir():
-        if item.is_dir():
+    # Kaggle mounts private datasets beneath nested paths such as
+    # /kaggle/input/datasets/<owner>/<dataset>/..., so immediate-child
+    # inspection is insufficient. Identify dataset roots from known files and
+    # retain the containing directory for recursive checkpoint lookup.
+    marker_files = {
+        'rcm_ckpts': 'Causal_rCM_Wan2.1_T2V_1.3B_480p_TF-dCM-init_SF-DMD_c1-1_step2.pt',
+        't5': 'models_t5_umt5-xxl-enc-bf16.pth',
+        'vae': 'Wan2.1_VAE.pth',
+    }
+    for kind, marker in marker_files.items():
+        matches = list(kaggle_input.rglob(marker))
+        if matches:
+            paths[kind] = matches[0].parent
+
+    # Fall back to name-based discovery for partial datasets and local tests.
+    if paths['rcm_ckpts'] is None or paths['t5'] is None or paths['vae'] is None:
+        for item in kaggle_input.rglob('*'):
+            if not item.is_dir():
+                continue
             name = item.name.lower()
-            if 'rcm' in name or 'ckpt' in name:
+            if paths['rcm_ckpts'] is None and ('rcm' in name or 'ckpt' in name):
                 paths['rcm_ckpts'] = item
-            elif 't5' in name:
+            elif paths['t5'] is None and 't5' in name:
                 paths['t5'] = item
-            elif 'vae' in name or 'dit' in name:
+            elif paths['vae'] is None and ('vae' in name or 'dit' in name):
                 paths['vae'] = item
 
     return paths

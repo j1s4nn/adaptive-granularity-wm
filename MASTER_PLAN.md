@@ -1,3 +1,82 @@
+# OPERATIONAL MASTER PLAN v2 — TWO-DAY PAPER COMPLETION
+
+> **Status:** This operational plan supersedes the original three-day execution schedule below. The original plan is retained as design history; do not execute its 86-GPU-hour schedule, its placeholder E1 implementation, or its action-conditioned assumptions.
+
+## Mission
+
+Convert the proposal into a defensible empirical paper in the remaining two days. The paper's core contribution is **uncertainty-guided runtime switching between the matched Causal-rCM fine mode (c1-1, K=1) and coarse mode (c3-3, K=3)**, with recovery and hysteresis. The evidence must compare quality proxies, temporal stability, latency, compute, and long-horizon behavior against fixed and signal-based baselines.
+
+The paper will not claim action-conditioned control because the verified checkpoints are text-to-video and contain no action interface. Set `lambda_action = 0`; retain the control term as an explicitly unavailable extension. A text-button prompt modifier may be built only as an optional demonstration and must never be presented as action conditioning or used as evidence for the main hypotheses.
+
+## Non-negotiable evidence rules
+
+1. Reuse the completed Phase 0b/0c artifacts. Do not repeat Phase 0.
+2. Every reported generated-video result must come from real Causal-rCM inference using the proven Phase 0c recipe. Random outputs, dummy metrics, repeated placeholder prompts, and paper-only estimates are forbidden.
+3. Validate at least one real c1-1 → c3-3 → c1-1 switch before E1/E3. If state transfer fails, stop the runtime-switch experiment and report an oracle/offline selection study instead of claiming online switching.
+4. Use only signals available before the next segment is generated. EMA uncertainty is removed because Phase 0 found no EMA weights.
+5. Split prompts/seeds into calibration and held-out test sets. Thresholds and AUROC must not be evaluated on the same examples used to choose them.
+6. Include uncertainty computation, checkpoint switching, VAE decoding, and model-loading overhead in latency and compute accounting.
+7. Text-to-video outputs do not provide ground-truth future frames. Do not report PSNR or reference LPIPS unless a declared reference set exists. Prefer VBench if it is immediately runnable; otherwise use explicitly named temporal-stability and pseudo-reference proxies.
+8. A 0.1% improvement is a predeclared practical target, never a guaranteed result. Report paired bootstrap intervals and disclose when the interval cannot resolve 0.1%.
+9. Every phase ends with an audit update in `prompt.md`, `STATUS.md`, and `PROGRESS.md`; then stop and report the phase, evidence, deviations from the proposal, and the next phase.
+10. Never place Kaggle tokens or credentials in source files, `prompt.md`, Git history, or experiment outputs.
+
+## Paper comparison matrix
+
+The final paper must include all feasible comparisons below under the same T4 protocol:
+
+| Comparison | Purpose | Required measurements |
+|---|---|---|
+| Fixed c1-1 vs fixed c3-3 | Establish fine/coarse trade-off | quality proxy, temporal stability, NFE, GPU time, FPS, memory |
+| Threshold-only controller (R=0) | Isolate switching from recovery | same metrics, mode trace, switch count |
+| Recovery controller | Test the main stabilisation mechanism | same metrics, switch cost, long-horizon terminal error |
+| Motion controller | Proposal's signal baseline | quality/latency/compute/switching |
+| Complexity controller | Proposal's signal baseline | quality/latency/compute/switching |
+| Oracle fine/coarse selection | Upper-bound attainable selection benefit | matched-compute quality and cost |
+| Causal-rCM literature reference | Contextual comparison only | VBench Total/Quality/Semantic, NFE, FPS, first/second latency, H100/T4 hardware note |
+
+The Causal-rCM literature numbers are not direct replacements for our measurements: the paper uses its own VBench protocol and H100 hardware. Our claims must be stated as improvement over the matched fixed baseline under our declared T4 protocol.
+
+## Reduced execution phases
+
+### Phase 1 — Infrastructure correction and switch smoke test
+
+Use the proven single-file Phase 0c runner as the source of truth. Replace the placeholder reusable inference path, realign checkpoint loading to nested Kaggle mounts, add a real resumable job metadata file, and run one short c1-1 → c3-3 → c1-1 rollout. Record whether latent/context/KV transfer is valid and measure switching overhead. **Stop for audit.**
+
+### Phase 2 — E1 fixed-mode baseline
+
+Use a small but real held-out prompt set and common valid horizons (21/33/45 frames for c3-3 alignment). Run fixed c1-1 schedules and c3-3 step-4. Compute real timing, NFE, memory, temporal stability, and the selected quality proxy. Produce fixed-mode comparison data and fine-preferred labels. **Stop for audit.**
+
+### Phase 3 — E2 signal calibration
+
+Compute residual/denoising-discrepancy and warp signals before each segment, plus motion and complexity baselines. Fit thresholds only on calibration prompts and report held-out AUROC with bootstrap intervals. Drop EMA and any unavailable action term. **Stop for audit.**
+
+### Phase 4 — E3 adaptive controller
+
+Run the real controller on held-out prompts. Compare threshold-only, adaptive, fixed modes, and oracle selection at matched compute. Include all controller and switching overhead. Report quality–latency–compute curves and the 0.1% practical target. **Stop for audit.**
+
+### Phase 5 — E4 recovery and final comparisons
+
+Evaluate R=0 versus one or two recovery lengths. Add motion and complexity end-to-end baselines if they are executable under the same protocol. Drop E5 CF/CF++ transfer unless compatible checkpoints and time remain. Generate tables, figures, claims, deviations, and the paper results outline. **Stop for audit.**
+
+## Explicit proposal coverage and deviations
+
+| Proposal item | Operational status |
+|---|---|
+| RQ1 uncertainty vs motion/complexity | In scope; residual/warp only, EMA removed |
+| RQ2 runtime fine/coarse switching | Core; requires switch smoke test |
+| RQ3 recovery + hysteresis | In scope |
+| RQ4 uncertainty–benefit relationship | In scope as exploratory reanalysis |
+| Action-augmented potential | Not testable; lambda=0 and documented deviation |
+| Camera-controlled interactive world model | Not testable with verified text-to-video checkpoints; scope narrowed explicitly |
+| E5 CF/CF++ transfer | Optional only; never allowed to block the core paper |
+| 100 prompts × 3 seeds × all modes | Replaced by a real held-out pilot sized to finish in two days |
+| FVD/PSNR/reference LPIPS | Only if valid references/features are available; otherwise replaced by declared proxies |
+
+## Completion standard
+
+The paper is ready when it contains real paired results for fixed fine, fixed coarse, threshold-only, and recovery controllers; a held-out signal comparison; a latency/compute accounting; a long-horizon stability analysis; a literature comparison table; and an explicit limitations section covering text-only conditioning, T4 hardware, sample size, and any failed switching assumption.
+
 # MASTER PLAN: Uncertainty-Guided Adaptive Temporal Granularity
 **Research Project**: Adaptive fine/coarse switching for Causal-rCM video world models  
 **Student**: Hossen Md Jisan (4th year AI, NUIST)  
