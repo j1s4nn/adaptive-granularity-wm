@@ -1,4 +1,4 @@
-# OPERATIONAL MASTER PLAN v2 — TWO-DAY PAPER COMPLETION
+﻿# OPERATIONAL MASTER PLAN v2 鈥?TWO-DAY PAPER COMPLETION
 
 > **Status:** This operational plan supersedes the original three-day execution schedule below. The original plan is retained as design history; do not execute its 86-GPU-hour schedule, its placeholder E1 implementation, or its action-conditioned assumptions.
 
@@ -12,7 +12,7 @@ The paper will not claim action-conditioned control because the verified checkpo
 
 1. Reuse the completed Phase 0b/0c artifacts. Do not repeat Phase 0.
 2. Every reported generated-video result must come from real Causal-rCM inference using the proven Phase 0c recipe. Random outputs, dummy metrics, repeated placeholder prompts, and paper-only estimates are forbidden.
-3. Validate at least one real c1-1 → c3-3 → c1-1 switch before E1/E3. If state transfer fails, stop the runtime-switch experiment and report an oracle/offline selection study instead of claiming online switching.
+3. Validate at least one real c1-1 鈫?c3-3 鈫?c1-1 switch before E1/E3. If state transfer fails, stop the runtime-switch experiment and report an oracle/offline selection study instead of claiming online switching.
 4. Use only signals available before the next segment is generated. EMA uncertainty is removed because Phase 0 found no EMA weights.
 5. Split prompts/seeds into calibration and held-out test sets. Thresholds and AUROC must not be evaluated on the same examples used to choose them.
 6. Include uncertainty computation, checkpoint switching, VAE decoding, and model-loading overhead in latency and compute accounting.
@@ -39,23 +39,29 @@ The Causal-rCM literature numbers are not direct replacements for our measuremen
 
 ## Reduced execution phases
 
-### Phase 1 — Infrastructure correction and switch smoke test
+### Phase 1 鈥?Infrastructure correction and switch smoke test
 
-Use the proven single-file Phase 0c runner as the source of truth. Replace the placeholder reusable inference path, realign checkpoint loading to nested Kaggle mounts, add a real resumable job metadata file, and run one short c1-1 → c3-3 → c1-1 rollout. Record whether latent/context/KV transfer is valid and measure switching overhead. **Stop for audit.**
+**Phase 1a status: COMPLETE.** The runner, nested dataset discovery, resumable metadata, and real fp16/SDPA Kaggle execution are verified.
 
-### Phase 2 — E1 fixed-mode baseline
+**Phase 1b status: COMPLETE (latent/context smoke test).** A real c1-1 -> c3-3 -> c1-1 sequence completed on a Tesla T4. Boundary latent transfer succeeded in both directions through the I2V continuation API. KV-cache persistence is unavailable in the verified API and is not claimed; model reload and boundary-transfer costs are reported explicitly.
+
+Evidence: `results/phase1_switch_v2_dl/results/phase1_switch/20261005_031931/20261005_031931_meta.json` and accompanying keyframes/log.
+
+Use the proven single-file Phase 0c runner as the source of truth. Replace the placeholder reusable inference path, realign checkpoint loading to nested Kaggle mounts, add a real resumable job metadata file, and run one short c1-1 鈫?c3-3 鈫?c1-1 rollout. Record whether latent/context/KV transfer is valid and measure switching overhead. **Stop for audit.**
+
+### Phase 2 鈥?E1 fixed-mode baseline
 
 Use a small but real held-out prompt set and common valid horizons (21/33/45 frames for c3-3 alignment). Run fixed c1-1 schedules and c3-3 step-4. Compute real timing, NFE, memory, temporal stability, and the selected quality proxy. Produce fixed-mode comparison data and fine-preferred labels. **Stop for audit.**
 
-### Phase 3 — E2 signal calibration
+### Phase 3 鈥?E2 signal calibration
 
 Compute residual/denoising-discrepancy and warp signals before each segment, plus motion and complexity baselines. Fit thresholds only on calibration prompts and report held-out AUROC with bootstrap intervals. Drop EMA and any unavailable action term. **Stop for audit.**
 
-### Phase 4 — E3 adaptive controller
+### Phase 4 鈥?E3 adaptive controller
 
-Run the real controller on held-out prompts. Compare threshold-only, adaptive, fixed modes, and oracle selection at matched compute. Include all controller and switching overhead. Report quality–latency–compute curves and the 0.1% practical target. **Stop for audit.**
+Run the real controller on held-out prompts. Compare threshold-only, adaptive, fixed modes, and oracle selection at matched compute. Include all controller and switching overhead. Report quality鈥搇atency鈥揷ompute curves and the 0.1% practical target. **Stop for audit.**
 
-### Phase 5 — E4 recovery and final comparisons
+### Phase 5 鈥?E4 recovery and final comparisons
 
 Evaluate R=0 versus one or two recovery lengths. Add motion and complexity end-to-end baselines if they are executable under the same protocol. Drop E5 CF/CF++ transfer unless compatible checkpoints and time remain. Generate tables, figures, claims, deviations, and the paper results outline. **Stop for audit.**
 
@@ -66,11 +72,11 @@ Evaluate R=0 versus one or two recovery lengths. Add motion and complexity end-t
 | RQ1 uncertainty vs motion/complexity | In scope; residual/warp only, EMA removed |
 | RQ2 runtime fine/coarse switching | Core; requires switch smoke test |
 | RQ3 recovery + hysteresis | In scope |
-| RQ4 uncertainty–benefit relationship | In scope as exploratory reanalysis |
+| RQ4 uncertainty鈥揵enefit relationship | In scope as exploratory reanalysis |
 | Action-augmented potential | Not testable; lambda=0 and documented deviation |
 | Camera-controlled interactive world model | Not testable with verified text-to-video checkpoints; scope narrowed explicitly |
 | E5 CF/CF++ transfer | Optional only; never allowed to block the core paper |
-| 100 prompts × 3 seeds × all modes | Replaced by a real held-out pilot sized to finish in two days |
+| 100 prompts 脳 3 seeds 脳 all modes | Replaced by a real held-out pilot sized to finish in two days |
 | FVD/PSNR/reference LPIPS | Only if valid references/features are available; otherwise replaced by declared proxies |
 
 ## Completion standard
@@ -102,13 +108,13 @@ After Stage 0 reconnaissance, I have studied:
 **Critical open problems identified**:
 1. **No action-conditioned checkpoint** for Wan2.1-1.3B exists in your datasets or the release
 2. **T4 compatibility**: Turing arch may not support FlashAttention-2; need PyTorch SDPA fallback
-3. **Control term Δa_i is unresolved** without an action model
-4. **Camera drift is real**: Causal-rCM's own report—frame-wise 4-step fails after ~1k iters
+3. **Control term 螖a_i is unresolved** without an action model
+4. **Camera drift is real**: Causal-rCM's own report鈥攆rame-wise 4-step fails after ~1k iters
 
-**Recommendation**: Start with **text-to-video only** (no action), defer action to future work unless you find a checkpoint. The proposal's control-augmented potential (Ψ_i = u_i + λΔa_i) becomes visual-only (Ψ_i = u_i, λ=0) as the baseline, with action as an aspirational extension.
+**Recommendation**: Start with **text-to-video only** (no action), defer action to future work unless you find a checkpoint. The proposal's control-augmented potential (唯_i = u_i + 位螖a_i) becomes visual-only (唯_i = u_i, 位=0) as the baseline, with action as an aspirational extension.
 
 **3-DAY EXECUTION STRATEGY**:
-- **Parallelization**: Run Phase 0 + multiple E1 configs simultaneously on Kaggle (2×T4 per job, submit 3-4 jobs in parallel)
+- **Parallelization**: Run Phase 0 + multiple E1 configs simultaneously on Kaggle (2脳T4 per job, submit 3-4 jobs in parallel)
 - **Overlap**: While E1 runs (20 GPU-hours), implement E2/E3/E4 code locally (Day 1 afternoon)
 - **No waiting**: Use `scripts/push_and_wait.py` with async polling; start next phase while previous downloads
 - **Figure generation**: Automated scripts generate all figures during job runs (no manual post-processing)
@@ -120,122 +126,111 @@ After Stage 0 reconnaissance, I have studied:
 
 ```
 04_Experiment/
-├── CLAUDE.md                       # Project instructions (already present)
-├── MASTER_PLAN.md                  # This file
-├── TREE.md                         # Auto-generated tree (updated every phase)
-├── INSTRUCTIONS.md                 # Cumulative manual steps
-├── DEVIATIONS.md                   # Tracking proposal changes
-├── CLAIMS.md                       # Claim→evidence mapping
-├── PREREG.md                       # Pre-registered decision rules
-│
-├── config/                         # Hyperparameters, thresholds
-│   ├── phase0_probe.yaml
-│   ├── baseline_fixed.yaml         # E1: fixed c1-1, c3-3
-│   ├── uncertainty_score.yaml      # E2: u_i components
-│   ├── controller.yaml             # E3/E4: τ_high, τ_low, R, λ
-│   └── compute_budget.yaml         # Matched-compute normalization
-│
-├── src/                            # Python packages
-│   ├── __init__.py
-│   ├── causal_rcm/                 # Wrapper for NVlabs/rcm inference
-│   │   ├── __init__.py
-│   │   ├── load_checkpoints.py    # Mount Kaggle datasets, load c1-1/c3-3
-│   │   ├── inference.py           # Single-step generate, expose internals
-│   │   └── fallback.py            # PyTorch SDPA if FA2 unavailable
-│   │
-│   ├── uncertainty/                # Proposed component 1
-│   │   ├── __init__.py
-│   │   ├── ema_score.py           # u_i^EMA (v_θ vs v_θ^-)
-│   │   ├── residual_score.py      # u_i^res (step i vs i-1)
-│   │   ├── warp_score.py          # u_i^warp (optical flow mismatch)
-│   │   ├── composite.py           # g_φ: combine into u_i
-│   │   └── calibrate.py           # E2: AUROC calibration
-│   │
-│   ├── controller/                 # Proposed components 2 & 3
-│   │   ├── __init__.py
-│   │   ├── potential.py           # Ψ_i = u_i + λΔa_i (λ=0 for text-only)
-│   │   ├── threshold.py           # Eq.(7) two-threshold switching
-│   │   ├── recovery.py            # Eq.(8) recovery counter r_i
-│   │   └── policy.py              # Combined controller
-│   │
-│   ├── baselines/                  # E5 comparison systems
-│   │   ├── __init__.py
-│   │   ├── motion_score.py        # LongScape/MotionCache-style
-│   │   ├── complexity_score.py    # EVATok/AdapTok-style
-│   │   └── surprise_score.py      # Surprise Forcing-style (if feasible)
-│   │
-│   ├── evaluation/                 # Metrics
-│   │   ├── __init__.py
-│   │   ├── fvd.py                 # Fréchet Video Distance
-│   │   ├── lpips.py               # Perceptual similarity
-│   │   ├── psnr.py                # Pixel fidelity
-│   │   ├── auroc.py               # Signal quality (E2)
-│   │   ├── switch_cost.py         # Mode-change artifact (E4)
-│   │   └── compute_cost.py        # GPU-time / FLOPs tracker
-│   │
-│   └── utils/                      # Infrastructure
-│       ├── __init__.py
-│       ├── logging.py             # Structured logs (meta.json)
-│       ├── tree_gen.py            # scripts/make_tree.py called here
-│       ├── figure_style.py        # Colorblind-safe matplotlib theme
-│       └── kaggle_io.py           # Dataset mounting, result download
-│
-├── jobs/                           # Kaggle kernel metadata
-│   ├── phase0/                     # E0 feasibility
-│   │   ├── kernel-metadata.json
-│   │   └── phase0_probe.py
-│   ├── e1_baseline/                # E1 fixed modes
-│   ├── e2_signal/                  # E2 uncertainty AUROC
-│   ├── e3_controller/              # E3 threshold policy
-│   ├── e4_recovery/                # E4 with hysteresis
-│   └── e5_robustness/              # E5 cross-signal comparison
-│
-├── results/                        # Local copies only (small outputs)
-│   ├── phase0/
-│   │   └── <run_id>/
-│   │       ├── meta.json          # Git commit, checkpoint sha256, status
-│   │       ├── config.yaml
-│   │       ├── logs/feasibility.log
-│   │       └── artifacts/vram_profile.txt
-│   ├── e1_baseline/
-│   │   └── <run_id>/
-│   │       ├── meta.json
-│   │       ├── raw/
-│   │       │   ├── fixed_fine_step{1,2,4}.jsonl  # FVD/LPIPS/PSNR per prompt
-│   │       │   └── fixed_coarse_step4.jsonl
-│   │       ├── figures_src/       # Scripts that generate figures
-│   │       │   └── plot_error_curves.py
-│   │       └── artifacts/
-│   │           ├── error_vs_length.pdf
-│   │           └── baseline_table.tex
-│   └── ... (e2, e3, e4, e5 follow same subtree)
-│
-├── scripts/                        # Automation
-│   ├── push_and_wait.py           # Submit job, poll, download
-│   ├── make_tree.py               # Regenerate TREE.md
-│   └── update_instructions.py     # Append to INSTRUCTIONS.md
-│
-└── docs/                           # Visualizations (generated from raw/)
-    ├── figures/                    # All paper-ready PDFs/PNGs
-    │   ├── fig_error_curves.pdf
-    │   ├── fig_mode_trace.pdf
-    │   ├── fig_roc.pdf
-    │   ├── fig_qualitative.pdf
-    │   └── ... (see §7 VISUALIZATION PLAN)
-    └── tables/
-        ├── tab_baseline.tex
-        ├── tab_signal_auroc.tex
-        ├── tab_ablations.tex
-        └── coverage_matrix.tex     # RQ→data→figure mapping
+鈹溾攢鈹€ CLAUDE.md                       # Project instructions (already present)
+鈹溾攢鈹€ MASTER_PLAN.md                  # This file
+鈹溾攢鈹€ TREE.md                         # Auto-generated tree (updated every phase)
+鈹溾攢鈹€ INSTRUCTIONS.md                 # Cumulative manual steps
+鈹溾攢鈹€ DEVIATIONS.md                   # Tracking proposal changes
+鈹溾攢鈹€ CLAIMS.md                       # Claim鈫抏vidence mapping
+鈹溾攢鈹€ PREREG.md                       # Pre-registered decision rules
+鈹?鈹溾攢鈹€ config/                         # Hyperparameters, thresholds
+鈹?  鈹溾攢鈹€ phase0_probe.yaml
+鈹?  鈹溾攢鈹€ baseline_fixed.yaml         # E1: fixed c1-1, c3-3
+鈹?  鈹溾攢鈹€ uncertainty_score.yaml      # E2: u_i components
+鈹?  鈹溾攢鈹€ controller.yaml             # E3/E4: 蟿_high, 蟿_low, R, 位
+鈹?  鈹斺攢鈹€ compute_budget.yaml         # Matched-compute normalization
+鈹?鈹溾攢鈹€ src/                            # Python packages
+鈹?  鈹溾攢鈹€ __init__.py
+鈹?  鈹溾攢鈹€ causal_rcm/                 # Wrapper for NVlabs/rcm inference
+鈹?  鈹?  鈹溾攢鈹€ __init__.py
+鈹?  鈹?  鈹溾攢鈹€ load_checkpoints.py    # Mount Kaggle datasets, load c1-1/c3-3
+鈹?  鈹?  鈹溾攢鈹€ inference.py           # Single-step generate, expose internals
+鈹?  鈹?  鈹斺攢鈹€ fallback.py            # PyTorch SDPA if FA2 unavailable
+鈹?  鈹?鈹?  鈹溾攢鈹€ uncertainty/                # Proposed component 1
+鈹?  鈹?  鈹溾攢鈹€ __init__.py
+鈹?  鈹?  鈹溾攢鈹€ ema_score.py           # u_i^EMA (v_胃 vs v_胃^-)
+鈹?  鈹?  鈹溾攢鈹€ residual_score.py      # u_i^res (step i vs i-1)
+鈹?  鈹?  鈹溾攢鈹€ warp_score.py          # u_i^warp (optical flow mismatch)
+鈹?  鈹?  鈹溾攢鈹€ composite.py           # g_蠁: combine into u_i
+鈹?  鈹?  鈹斺攢鈹€ calibrate.py           # E2: AUROC calibration
+鈹?  鈹?鈹?  鈹溾攢鈹€ controller/                 # Proposed components 2 & 3
+鈹?  鈹?  鈹溾攢鈹€ __init__.py
+鈹?  鈹?  鈹溾攢鈹€ potential.py           # 唯_i = u_i + 位螖a_i (位=0 for text-only)
+鈹?  鈹?  鈹溾攢鈹€ threshold.py           # Eq.(7) two-threshold switching
+鈹?  鈹?  鈹溾攢鈹€ recovery.py            # Eq.(8) recovery counter r_i
+鈹?  鈹?  鈹斺攢鈹€ policy.py              # Combined controller
+鈹?  鈹?鈹?  鈹溾攢鈹€ baselines/                  # E5 comparison systems
+鈹?  鈹?  鈹溾攢鈹€ __init__.py
+鈹?  鈹?  鈹溾攢鈹€ motion_score.py        # LongScape/MotionCache-style
+鈹?  鈹?  鈹溾攢鈹€ complexity_score.py    # EVATok/AdapTok-style
+鈹?  鈹?  鈹斺攢鈹€ surprise_score.py      # Surprise Forcing-style (if feasible)
+鈹?  鈹?鈹?  鈹溾攢鈹€ evaluation/                 # Metrics
+鈹?  鈹?  鈹溾攢鈹€ __init__.py
+鈹?  鈹?  鈹溾攢鈹€ fvd.py                 # Fr茅chet Video Distance
+鈹?  鈹?  鈹溾攢鈹€ lpips.py               # Perceptual similarity
+鈹?  鈹?  鈹溾攢鈹€ psnr.py                # Pixel fidelity
+鈹?  鈹?  鈹溾攢鈹€ auroc.py               # Signal quality (E2)
+鈹?  鈹?  鈹溾攢鈹€ switch_cost.py         # Mode-change artifact (E4)
+鈹?  鈹?  鈹斺攢鈹€ compute_cost.py        # GPU-time / FLOPs tracker
+鈹?  鈹?鈹?  鈹斺攢鈹€ utils/                      # Infrastructure
+鈹?      鈹溾攢鈹€ __init__.py
+鈹?      鈹溾攢鈹€ logging.py             # Structured logs (meta.json)
+鈹?      鈹溾攢鈹€ tree_gen.py            # scripts/make_tree.py called here
+鈹?      鈹溾攢鈹€ figure_style.py        # Colorblind-safe matplotlib theme
+鈹?      鈹斺攢鈹€ kaggle_io.py           # Dataset mounting, result download
+鈹?鈹溾攢鈹€ jobs/                           # Kaggle kernel metadata
+鈹?  鈹溾攢鈹€ phase0/                     # E0 feasibility
+鈹?  鈹?  鈹溾攢鈹€ kernel-metadata.json
+鈹?  鈹?  鈹斺攢鈹€ phase0_probe.py
+鈹?  鈹溾攢鈹€ e1_baseline/                # E1 fixed modes
+鈹?  鈹溾攢鈹€ e2_signal/                  # E2 uncertainty AUROC
+鈹?  鈹溾攢鈹€ e3_controller/              # E3 threshold policy
+鈹?  鈹溾攢鈹€ e4_recovery/                # E4 with hysteresis
+鈹?  鈹斺攢鈹€ e5_robustness/              # E5 cross-signal comparison
+鈹?鈹溾攢鈹€ results/                        # Local copies only (small outputs)
+鈹?  鈹溾攢鈹€ phase0/
+鈹?  鈹?  鈹斺攢鈹€ <run_id>/
+鈹?  鈹?      鈹溾攢鈹€ meta.json          # Git commit, checkpoint sha256, status
+鈹?  鈹?      鈹溾攢鈹€ config.yaml
+鈹?  鈹?      鈹溾攢鈹€ logs/feasibility.log
+鈹?  鈹?      鈹斺攢鈹€ artifacts/vram_profile.txt
+鈹?  鈹溾攢鈹€ e1_baseline/
+鈹?  鈹?  鈹斺攢鈹€ <run_id>/
+鈹?  鈹?      鈹溾攢鈹€ meta.json
+鈹?  鈹?      鈹溾攢鈹€ raw/
+鈹?  鈹?      鈹?  鈹溾攢鈹€ fixed_fine_step{1,2,4}.jsonl  # FVD/LPIPS/PSNR per prompt
+鈹?  鈹?      鈹?  鈹斺攢鈹€ fixed_coarse_step4.jsonl
+鈹?  鈹?      鈹溾攢鈹€ figures_src/       # Scripts that generate figures
+鈹?  鈹?      鈹?  鈹斺攢鈹€ plot_error_curves.py
+鈹?  鈹?      鈹斺攢鈹€ artifacts/
+鈹?  鈹?          鈹溾攢鈹€ error_vs_length.pdf
+鈹?  鈹?          鈹斺攢鈹€ baseline_table.tex
+鈹?  鈹斺攢鈹€ ... (e2, e3, e4, e5 follow same subtree)
+鈹?鈹溾攢鈹€ scripts/                        # Automation
+鈹?  鈹溾攢鈹€ push_and_wait.py           # Submit job, poll, download
+鈹?  鈹溾攢鈹€ make_tree.py               # Regenerate TREE.md
+鈹?  鈹斺攢鈹€ update_instructions.py     # Append to INSTRUCTIONS.md
+鈹?鈹斺攢鈹€ docs/                           # Visualizations (generated from raw/)
+    鈹溾攢鈹€ figures/                    # All paper-ready PDFs/PNGs
+    鈹?  鈹溾攢鈹€ fig_error_curves.pdf
+    鈹?  鈹溾攢鈹€ fig_mode_trace.pdf
+    鈹?  鈹溾攢鈹€ fig_roc.pdf
+    鈹?  鈹溾攢鈹€ fig_qualitative.pdf
+    鈹?  鈹斺攢鈹€ ... (see 搂7 VISUALIZATION PLAN)
+    鈹斺攢鈹€ tables/
+        鈹溾攢鈹€ tab_baseline.tex
+        鈹溾攢鈹€ tab_signal_auroc.tex
+        鈹溾攢鈹€ tab_ablations.tex
+        鈹斺攢鈹€ coverage_matrix.tex     # RQ鈫抎ata鈫抐igure mapping
 ```
 
-**INPUT→OUTPUT flow**:
-- **Phase 0**: Kaggle datasets → VRAM profile, internals list, action format → go/no-go
-- **E1**: Prompts → c1-1/c3-3 generate → raw JSONL → error curves + baseline table
-- **E2**: E1 rollouts → uncertainty scores → AUROC vs coarse-safe/unsafe labels
-- **E3**: E2 calibrated u_i → threshold controller → quality/latency/compute vs fixed
-- **E4**: E3 + recovery counter → switch count, switch cost, long-horizon error
-- **E5**: CF/CF++ checkpoints (if feasible) → signal transfer AUROC + end-to-end comparison
+**INPUT鈫扥UTPUT flow**:
+- **Phase 0**: Kaggle datasets 鈫?VRAM profile, internals list, action format 鈫?go/no-go
+- **E1**: Prompts 鈫?c1-1/c3-3 generate 鈫?raw JSONL 鈫?error curves + baseline table
+- **E2**: E1 rollouts 鈫?uncertainty scores 鈫?AUROC vs coarse-safe/unsafe labels
+- **E3**: E2 calibrated u_i 鈫?threshold controller 鈫?quality/latency/compute vs fixed
+- **E4**: E3 + recovery counter 鈫?switch count, switch cost, long-horizon error
+- **E5**: CF/CF++ checkpoints (if feasible) 鈫?signal transfer AUROC + end-to-end comparison
 
 ---
 
@@ -252,7 +247,7 @@ After Stage 0 reconnaissance, I have studied:
 1. Load c1-1_step{2,4} and c3-3_step4 checkpoints (matched pair from same recipe)
 2. Run single-frame generate on T4, log peak VRAM at 480p
 3. Test PyTorch SDPA fallback if FlashAttention-2 unavailable
-4. Inspect exposed internals: EMA model (v_θ^-), latents, KV buffer
+4. Inspect exposed internals: EMA model (v_胃^-), latents, KV buffer
 5. Check Cosmos 3 action interface (if action checkpoint exists)
 6. Confirm VAE decode works (Wan2.1 VAE)
 
@@ -263,9 +258,9 @@ After Stage 0 reconnaissance, I have studied:
 - `artifacts/internals_list.txt`: Which model attributes are accessible
 
 **SUCCESS**: Both checkpoints fit in 16GB, inference runs, EMA model accessible  
-**FAILURE**: VRAM overflow → reduce batch or resolution; retry at 360p
+**FAILURE**: VRAM overflow 鈫?reduce batch or resolution; retry at 360p
 
-**DECISION GATE**: If no EMA model → drop u_i^EMA, use only residual+warp. If no action checkpoint → proceed text-only (λ=0). Report both to you before Phase 1.
+**DECISION GATE**: If no EMA model 鈫?drop u_i^EMA, use only residual+warp. If no action checkpoint 鈫?proceed text-only (位=0). Report both to you before Phase 1.
 
 ---
 
@@ -279,10 +274,10 @@ After Stage 0 reconnaissance, I have studied:
 - Rollout length: 10, 25, 50 frames (your proposal's 3 horizons)
 
 **TASKS**:
-1. Generate with fixed fine (c1-1, S∈{1,2,4}) and fixed coarse (c3-3, S=4)
+1. Generate with fixed fine (c1-1, S鈭坽1,2,4}) and fixed coarse (c3-3, S=4)
 2. Measure per-segment GPU time (ms), FLOPs estimate
 3. Compute FVD, LPIPS, PSNR at 10/25/50 frames
-4. **Label coarse-unsafe segments**: where fixed-coarse quality drops >Δ below fixed-fine
+4. **Label coarse-unsafe segments**: where fixed-coarse quality drops >螖 below fixed-fine
 
 **OUTPUT**: `results/e1_baseline/<run_id>/raw/`
 - `fixed_fine_step1.jsonl` (one line per prompt/seed/frame: {prompt_id, seed, frame_idx, fvd, lpips, psnr, gpu_ms})
@@ -294,8 +289,8 @@ After Stage 0 reconnaissance, I have studied:
 - `fig_error_curves.pdf`: FVD/LPIPS/PSNR vs rollout length, 4 fixed modes + 95% CI
 - `tab_baseline.tex`: Quality@10/25/50, latency, compute for each mode
 
-**SUCCESS**: Curves show frame-wise error grows faster; Δ threshold separates modes  
-**FAILURE**: All modes degrade equally → no switching benefit; report as negative result
+**SUCCESS**: Curves show frame-wise error grows faster; 螖 threshold separates modes  
+**FAILURE**: All modes degrade equally 鈫?no switching benefit; report as negative result
 
 ---
 
@@ -308,10 +303,10 @@ After Stage 0 reconnaissance, I have studied:
 
 **TASKS**:
 1. **Compute before each segment**:
-   - u_i^EMA: ||v_θ(x_t, x^<i, t) - v_θ^-(x_t, x^<i, t)||
+   - u_i^EMA: ||v_胃(x_t, x^<i, t) - v_胃^-(x_t, x^<i, t)||
    - u_i^res: ||pred_i - pred_{i-1}|| (self-consistency)
-   - u_i^warp: ||x_{i-1} - W(x_{i-2}, flow_{i-2→i-1})||
-   - Composite u_i = g_φ(EMA, res, warp) [test: mean, max, tiny MLP]
+   - u_i^warp: ||x_{i-1} - W(x_{i-2}, flow_{i-2鈫抜-1})||
+   - Composite u_i = g_蠁(EMA, res, warp) [test: mean, max, tiny MLP]
 2. **Baseline signals**:
    - Motion: mean optical flow magnitude
    - Complexity: edge density or spatial entropy
@@ -319,56 +314,56 @@ After Stage 0 reconnaissance, I have studied:
 
 **OUTPUT**: `results/e2_signal/<run_id>/`
 - `raw/scores.jsonl`: {prompt_id, seed, segment_idx, u_ema, u_res, u_warp, u_composite, motion, complexity, label}
-- `figures_src/plot_roc.py` → `artifacts/fig_roc.pdf`: 5 ROC curves (ours + 2 baselines + ablations)
+- `figures_src/plot_roc.py` 鈫?`artifacts/fig_roc.pdf`: 5 ROC curves (ours + 2 baselines + ablations)
 - `artifacts/tab_signal_auroc.tex`: Signal | AUROC | 95% CI
 
-**SUCCESS**: u_i AUROC ≥ motion/complexity (H1 support)  
-**FAILURE**: Motion beats uncertainty → uncertainty is not the right signal (H1 weakened, still informative)
+**SUCCESS**: u_i AUROC 鈮?motion/complexity (H1 support)  
+**FAILURE**: Motion beats uncertainty 鈫?uncertainty is not the right signal (H1 weakened, still informative)
 
-**CALIBRATION**: If u_i AUROC > 0.6, proceed. Learn τ_high, τ_low from ROC knee (Youden index).
+**CALIBRATION**: If u_i AUROC > 0.6, proceed. Learn 蟿_high, 蟿_low from ROC knee (Youden index).
 
 ---
 
 ### Phase 2: E3 Threshold Controller vs Fixed (4 days, GPU: ~25 hours)
-**Goal**: Test RQ2 — does switching beat the best fixed mode at matched compute?
+**Goal**: Test RQ2 鈥?does switching beat the best fixed mode at matched compute?
 
 **INPUT**:
 - Calibrated u_i (from E2)
-- τ_high, τ_low (from E2 ROC)
+- 蟿_high, 蟿_low (from E2 ROC)
 - Same 100 prompts, 3 seeds
 
 **TASKS**:
-1. Run controller (Eq. 7 from proposal): Ψ_i = u_i (λ=0 for text-only)
-   - If Ψ_i ≥ τ_high → fine (c1-1)
-   - If Ψ_i ≤ τ_low → coarse (c3-3)
+1. Run controller (Eq. 7 from proposal): 唯_i = u_i (位=0 for text-only)
+   - If 唯_i 鈮?蟿_high 鈫?fine (c1-1)
+   - If 唯_i 鈮?蟿_low 鈫?coarse (c3-3)
    - Else keep previous mode
-2. Track total compute: C = Σ κ(m_i)
+2. Track total compute: C = 危 魏(m_i)
 3. Compare vs best fixed mode at **same compute** (adjust fixed-mode step count)
 4. Measure quality at 10/25/50 frames, latency, switch count
 
 **OUTPUT**: `results/e3_controller/<run_id>/`
-- `raw/adaptive.jsonl`: per-frame quality, mode trace, Ψ_i, compute
+- `raw/adaptive.jsonl`: per-frame quality, mode trace, 唯_i, compute
 - `raw/fixed_matched.jsonl`: best fixed mode at matched compute
-- `figures_src/plot_quality_vs_compute.py` → `fig_quality_latency_compute.pdf`
+- `figures_src/plot_quality_vs_compute.py` 鈫?`fig_quality_latency_compute.pdf`
 - `artifacts/tab_controller_vs_fixed.tex`
 
-**SUCCESS**: Adaptive FVD ≤ fixed at same C, or same FVD at lower C (H2 support)  
-**FAILURE**: Fixed mode equals or beats adaptive → switching offers no benefit (H2 weakened, pre-registered negative)
+**SUCCESS**: Adaptive FVD 鈮?fixed at same C, or same FVD at lower C (H2 support)  
+**FAILURE**: Fixed mode equals or beats adaptive 鈫?switching offers no benefit (H2 weakened, pre-registered negative)
 
-**RQ4 analysis** (reuses E3 data): Bin segments by u_i quartile, compute fine-vs-coarse quality gap per bin → check monotonicity. Report as finding either way.
+**RQ4 analysis** (reuses E3 data): Bin segments by u_i quartile, compute fine-vs-coarse quality gap per bin 鈫?check monotonicity. Report as finding either way.
 
 ---
 
 ### Phase 3: E4 Recovery + Hysteresis (2 days, GPU: ~12 hours)
-**Goal**: Test RQ3 — does recovery counter reduce oscillation and improve quality?
+**Goal**: Test RQ3 鈥?does recovery counter reduce oscillation and improve quality?
 
 **INPUT**:
 - E3 controller (threshold-only, R=0)
-- Recovery lengths: R ∈ {0, 3, 5, 10} steps
+- Recovery lengths: R 鈭?{0, 3, 5, 10} steps
 
 **TASKS**:
 1. Add recovery counter (Eq. 8 from proposal):
-   - On spike (Ψ_i ≥ τ_high): r_i ← R, stay fine for R steps
+   - On spike (唯_i 鈮?蟿_high): r_i 鈫?R, stay fine for R steps
    - Decrement r_i each step until 0, then return to threshold rule
 2. Measure:
    - Switch count (fewer is better)
@@ -377,11 +372,11 @@ After Stage 0 reconnaissance, I have studied:
 
 **OUTPUT**: `results/e4_recovery/<run_id>/`
 - `raw/recovery_sweep.jsonl`: {R, switch_count, switch_cost, fvd50}
-- `figures_src/plot_mode_trace.py` → `fig_mode_trace.pdf`: Ψ_i, mode, r_i over time
+- `figures_src/plot_mode_trace.py` 鈫?`fig_mode_trace.pdf`: 唯_i, mode, r_i over time
 - `artifacts/tab_recovery.tex`
 
 **SUCCESS**: R>0 reduces switches, maintains or improves quality (H3 support)  
-**FAILURE**: No difference → hysteresis unnecessary at this setting (H3 weakened)
+**FAILURE**: No difference 鈫?hysteresis unnecessary at this setting (H3 weakened)
 
 ---
 
@@ -391,7 +386,7 @@ After Stage 0 reconnaissance, I have studied:
 **INPUT**:
 - CF (chunk-wise 4-step, if accessible)
 - CF++ (frame-wise 2-step, if accessible)
-- Calibrated τ_high, τ_low from E2 (Causal-rCM)
+- Calibrated 蟿_high, 蟿_low from E2 (Causal-rCM)
 
 **TASKS**:
 1. **Cross-recipe**: Re-run uncertainty controller on CF/CF++, measure AUROC and quality
@@ -399,15 +394,15 @@ After Stage 0 reconnaissance, I have studied:
    - Motion controller: threshold on optical flow
    - Complexity controller: threshold on scene entropy
    - Surprise Forcing-style S-only (if feasible after Phase 0)
-   - λ=0 ablation (already covered in E3)
+   - 位=0 ablation (already covered in E3)
 3. End-to-end quality/latency/compute comparison
 
 **OUTPUT**: `results/e5_robustness/<run_id>/`
 - `raw/cf_transfer.jsonl`, `raw/motion_end2end.jsonl`, etc.
 - `artifacts/tab_full_comparison.tex`: All systems, all metrics
 
-**SUCCESS**: Uncertainty transfers (AUROC ≥ 0.55 on CF/CF++) and beats motion/complexity end-to-end  
-**FAILURE**: Transfer fails or motion wins → signal is recipe-specific or not the best choice
+**SUCCESS**: Uncertainty transfers (AUROC 鈮?0.55 on CF/CF++) and beats motion/complexity end-to-end  
+**FAILURE**: Transfer fails or motion wins 鈫?signal is recipe-specific or not the best choice
 
 ---
 
@@ -415,17 +410,17 @@ After Stage 0 reconnaissance, I have studied:
 **Goal**: Generate all figures, finalize CLAIMS.md, write paper outline.
 
 **TASKS**:
-1. Run all `figures_src/*.py` scripts → populate `docs/figures/`
-2. Update `coverage_matrix.tex`: every RQ/hypothesis → data file → figure/table
+1. Run all `figures_src/*.py` scripts 鈫?populate `docs/figures/`
+2. Update `coverage_matrix.tex`: every RQ/hypothesis 鈫?data file 鈫?figure/table
 3. Finalize DEVIATIONS.md (what changed from proposal)
 4. Pre-registered decision rules (PREREG.md): check every hypothesis
-5. Write paper outline (see §4 PAPER MAP)
+5. Write paper outline (see 搂4 PAPER MAP)
 
 **OUTPUT**:
 - `docs/figures/`: 12+ publication-ready PDFs
 - `docs/tables/`: LaTeX tables for each experiment
 - `paper_outline.md`: Structured sections with data pointers
-- `CLAIMS.md`: Each claim → [SUPPORTED / WEAKENED / UNSUPPORTED] + evidence file
+- `CLAIMS.md`: Each claim 鈫?[SUPPORTED / WEAKENED / UNSUPPORTED] + evidence file
 
 ---
 
@@ -433,21 +428,21 @@ After Stage 0 reconnaissance, I have studied:
 
 | RQ/Hyp | Research Question | Experiment | Raw Data File | Figure/Table | Decision Rule |
 |--------|-------------------|------------|---------------|--------------|---------------|
-| **RQ1** | Does uncertainty beat motion/complexity? | E2 | `e2_signal/raw/scores.jsonl` | `fig_roc.pdf`, `tab_signal_auroc.tex` | AUROC(u_i) ≥ AUROC(motion) AND AUROC(u_i) ≥ AUROC(complexity) → H1 SUPPORTED |
+| **RQ1** | Does uncertainty beat motion/complexity? | E2 | `e2_signal/raw/scores.jsonl` | `fig_roc.pdf`, `tab_signal_auroc.tex` | AUROC(u_i) 鈮?AUROC(motion) AND AUROC(u_i) 鈮?AUROC(complexity) 鈫?H1 SUPPORTED |
 | **H1** | Uncertainty identifies coarse-unsafe moments better | E2 | Same | Same | Same |
-| **RQ2** | Does adaptive switching beat fixed modes? | E3 | `e3_controller/raw/adaptive.jsonl` | `fig_quality_latency_compute.pdf`, `tab_controller_vs_fixed.tex` | (Adaptive FVD@50 ≤ Fixed FVD@50 at matched C) OR (same FVD at lower C) → H2 SUPPORTED |
+| **RQ2** | Does adaptive switching beat fixed modes? | E3 | `e3_controller/raw/adaptive.jsonl` | `fig_quality_latency_compute.pdf`, `tab_controller_vs_fixed.tex` | (Adaptive FVD@50 鈮?Fixed FVD@50 at matched C) OR (same FVD at lower C) 鈫?H2 SUPPORTED |
 | **H2** | Switching improves quality-latency-compute trade-off | E3 | Same | Same | Same |
-| **RQ3** | Does recovery+hysteresis reduce oscillation? | E4 | `e4_recovery/raw/recovery_sweep.jsonl` | `fig_mode_trace.pdf`, `tab_recovery.tex` | (Switch count with R>0 < Switch count with R=0) AND (FVD@50 with R>0 ≤ FVD@50 with R=0) → H3 SUPPORTED |
+| **RQ3** | Does recovery+hysteresis reduce oscillation? | E4 | `e4_recovery/raw/recovery_sweep.jsonl` | `fig_mode_trace.pdf`, `tab_recovery.tex` | (Switch count with R>0 < Switch count with R=0) AND (FVD@50 with R>0 鈮?FVD@50 with R=0) 鈫?H3 SUPPORTED |
 | **H3** | Recovery counter stabilizes long-horizon quality | E4 | Same | Same | Same |
-| **RQ4** | Is uncertainty→benefit relationship monotonic? | E3 reanalysis | `e3_controller/raw/adaptive.jsonl` | `fig_monotonicity.pdf` | Report empirical relationship; no support/weaken (exploratory) |
+| **RQ4** | Is uncertainty鈫抌enefit relationship monotonic? | E3 reanalysis | `e3_controller/raw/adaptive.jsonl` | `fig_monotonicity.pdf` | Report empirical relationship; no support/weaken (exploratory) |
 | **H4** | Exploratory: non-monotonicity like Causal-rCM's S-behavior? | E3 reanalysis | Same | Same | Report finding either way |
 | **Baseline char.** | Error-vs-length curves (missing from literature) | E1 | `e1_baseline/raw/*.jsonl` | `fig_error_curves.pdf`, `tab_baseline.tex` | N/A (descriptive) |
-| **Cross-recipe** | Does signal transfer to CF/CF++? | E5 | `e5_robustness/raw/cf_transfer.jsonl` | `tab_full_comparison.tex` | AUROC(CF/CF++) ≥ 0.55 → Transfer SUCCESSFUL |
+| **Cross-recipe** | Does signal transfer to CF/CF++? | E5 | `e5_robustness/raw/cf_transfer.jsonl` | `tab_full_comparison.tex` | AUROC(CF/CF++) 鈮?0.55 鈫?Transfer SUCCESSFUL |
 | **Motion baseline** | Motion-driven controller | E5 | `e5_robustness/raw/motion_end2end.jsonl` | `tab_full_comparison.tex` | End-to-end FVD comparison |
 | **Complexity baseline** | Complexity-driven controller | E5 | `e5_robustness/raw/complexity_end2end.jsonl` | `tab_full_comparison.tex` | End-to-end FVD comparison |
 
 **Unaddressed from proposal** (due to missing action checkpoint):
-- Control-augmented potential Ψ_i = u_i + λΔa_i: Deferred to λ=0 (text-only). If you find an action checkpoint, add Phase 6.
+- Control-augmented potential 唯_i = u_i + 位螖a_i: Deferred to 位=0 (text-only). If you find an action checkpoint, add Phase 6.
 - Cosmos 3 action-conditioned setting: Not feasible without action checkpoint.
 
 ---
@@ -471,9 +466,9 @@ After Stage 0 reconnaissance, I have studied:
 **2. Related Work** (1 page)
 - Theme A: AR diffusion distillation (CF family)
 - Theme C: Adaptive temporal allocation (LongScape, EVATok)
-- Theme F: Uncertainty-adaptive compute (Surprise Forcing, DSA, ENkG — but non-interactive)
-- Theme G: Hysteresis switching (DASH-OPD, SUNTA — but not video generation)
-- **Needs**: Claim boundary table (from proposal §3)
+- Theme F: Uncertainty-adaptive compute (Surprise Forcing, DSA, ENkG 鈥?but non-interactive)
+- Theme G: Hysteresis switching (DASH-OPD, SUNTA 鈥?but not video generation)
+- **Needs**: Claim boundary table (from proposal 搂3)
 
 **3. Background** (0.5 page)
 - Causal-rCM matched pair (c1-1, c3-3)
@@ -490,18 +485,18 @@ After Stage 0 reconnaissance, I have studied:
 
 **5. Experiments** (3 pages)
 - Setup: Kaggle T4, 100 prompts, 3 seeds, 10/25/50 frames
-- E1: Fixed-mode baseline → error curves, compute costs
-- E2: Signal calibration → ROC curves, AUROC table
-- E3: Adaptive vs fixed → quality-latency-compute plots
-- E4: Recovery sweep → mode traces, switch cost
-- E5: Robustness → cross-recipe transfer, full baseline comparison
+- E1: Fixed-mode baseline 鈫?error curves, compute costs
+- E2: Signal calibration 鈫?ROC curves, AUROC table
+- E3: Adaptive vs fixed 鈫?quality-latency-compute plots
+- E4: Recovery sweep 鈫?mode traces, switch cost
+- E5: Robustness 鈫?cross-recipe transfer, full baseline comparison
 - **Needs**: ALL figures from `docs/figures/`, ALL tables from `docs/tables/`
 
 **6. Results** (2 pages)
 - RQ1: [Uncertainty beats / ties / loses to] motion/complexity (AUROC X.XX vs Y.YY)
 - RQ2: [Adaptive beats / matches / loses to] best fixed at matched C (FVD@50: X.X vs Y.Y)
 - RQ3: [Recovery reduces / has no effect on] switches (count: X vs Y) and [improves / maintains] quality
-- RQ4: Uncertainty→benefit is [monotonic / peaks at mid-range / non-monotonic] (exploratory)
+- RQ4: Uncertainty鈫抌enefit is [monotonic / peaks at mid-range / non-monotonic] (exploratory)
 - **Needs**: Qualitative side-by-side (Fig. 6 from proposal sketch), long-horizon drift strips
 
 **7. Limitations** (0.5 page)
@@ -527,22 +522,22 @@ After Stage 0 reconnaissance, I have studied:
 
 | System | Description | K | S | Switching? | Signal | Recovery? | Experiment |
 |--------|-------------|---|---|------------|--------|-----------|------------|
-| **Fixed fine (c1-1)** | Frame-wise, S=1 | 1 | 1 | No | — | — | E1 baseline |
-| **Fixed fine (c1-1)** | Frame-wise, S=2 | 1 | 2 | No | — | — | E1 baseline |
-| **Fixed fine (c1-1)** | Frame-wise, S=4 | 1 | 4 | No | — | — | E1 baseline |
-| **Fixed coarse (c3-3)** | Chunk-wise, S=4 | 3 | 4 | No | — | — | E1 baseline |
+| **Fixed fine (c1-1)** | Frame-wise, S=1 | 1 | 1 | No | 鈥?| 鈥?| E1 baseline |
+| **Fixed fine (c1-1)** | Frame-wise, S=2 | 1 | 2 | No | 鈥?| 鈥?| E1 baseline |
+| **Fixed fine (c1-1)** | Frame-wise, S=4 | 1 | 4 | No | 鈥?| 鈥?| E1 baseline |
+| **Fixed coarse (c3-3)** | Chunk-wise, S=4 | 3 | 4 | No | 鈥?| 鈥?| E1 baseline |
 | **Uncertainty threshold (no recovery)** | Adaptive | 1/3 | {1,2,4}/4 | Yes | u_i | No | E3 |
 | **Uncertainty + recovery (R=3)** | Adaptive | 1/3 | {1,2,4}/4 | Yes | u_i | Yes | E4 |
 | **Uncertainty + recovery (R=5)** | Adaptive | 1/3 | {1,2,4}/4 | Yes | u_i | Yes | E4 |
 | **Uncertainty + recovery (R=10)** | Adaptive | 1/3 | {1,2,4}/4 | Yes | u_i | Yes | E4 |
 | **Motion threshold** | Adaptive | 1/3 | {1,2,4}/4 | Yes | Optical flow | No | E5 |
 | **Complexity threshold** | Adaptive | 1/3 | {1,2,4}/4 | Yes | Scene entropy | No | E5 |
-| **λ=0 ablation** | Adaptive, visual-only | 1/3 | {1,2,4}/4 | Yes | u_i (no control term) | Yes/No | E3 (baseline=λ0 for text) |
+| **位=0 ablation** | Adaptive, visual-only | 1/3 | {1,2,4}/4 | Yes | u_i (no control term) | Yes/No | E3 (baseline=位0 for text) |
 | **Random switch (sanity)** | Adaptive, random | 1/3 | {1,2,4}/4 | Yes | Bernoulli(0.5) | No | E5 optional |
 | **Surprise Forcing-style (if feasible)** | Adaptive | 1/3 | {1,2,4}/4 | Yes | Post-1st-pass surprise | No | E5 (Phase 0 gate) |
-| **CF/CF++ transfer (if feasible)** | Cross-recipe | — | — | Yes | u_i (calibrated on rCM) | No | E5 (Phase 0 gate) |
+| **CF/CF++ transfer (if feasible)** | Cross-recipe | 鈥?| 鈥?| Yes | u_i (calibrated on rCM) | No | E5 (Phase 0 gate) |
 
-**Matched compute**: All adaptive systems normalized to same total C as best fixed mode. E1 measures κ(F)={K=1, S}, κ(C)={K=3, S=4}. E3/E4/E5 adjust thresholds or step budgets to match.
+**Matched compute**: All adaptive systems normalized to same total C as best fixed mode. E1 measures 魏(F)={K=1, S}, 魏(C)={K=3, S=4}. E3/E4/E5 adjust thresholds or step budgets to match.
 
 **Sanity checks**:
 - Random switch: Should perform between best and worst fixed modes (if it beats all, switching itself is beneficial)
@@ -556,7 +551,7 @@ After Stage 0 reconnaissance, I have studied:
 
 **Design**:
 1. **Rollout lengths**: 10, 25, 50, 100, 150 frames (if VRAM allows; else cap at 100)
-2. **Prompts**: 50 prompts (subset of VBench) with motion diversity (static→dynamic spectrum)
+2. **Prompts**: 50 prompts (subset of VBench) with motion diversity (static鈫抎ynamic spectrum)
 3. **Systems**: Fixed fine S=2 (best latency), Fixed coarse S=4 (best stability), Adaptive+recovery
 4. **Metrics**:
    - FVD at each length milestone
@@ -570,7 +565,7 @@ After Stage 0 reconnaissance, I have studied:
 - `fig_drift_strips.pdf`: Side-by-side frame strips at 10/50/100 frames
 - `artifacts/artifact_count.txt`: Manual count of visible glitches
 
-**Pre-registered decision**: If adaptive FVD@100 ≤ best fixed FVD@100, long-horizon hypothesis SUPPORTED. If fixed-coarse always wins, frame-wise switching offers no stability gain (negative result, still publishable).
+**Pre-registered decision**: If adaptive FVD@100 鈮?best fixed FVD@100, long-horizon hypothesis SUPPORTED. If fixed-coarse always wins, frame-wise switching offers no stability gain (negative result, still publishable).
 
 **Risk**: 100-frame rollouts may exhaust VRAM. Fallback: Generate in chunks, cache KV carefully. If still fails, cap at 50 and acknowledge as limitation.
 
@@ -585,25 +580,25 @@ After Stage 0 reconnaissance, I have studied:
 | `fig_error_curves.pdf` | Line plot | E1 raw JSONL | FVD/LPIPS/PSNR vs rollout length, 4 fixed modes, 95% CI |
 | `fig_roc.pdf` | ROC curves | E2 raw scores | 5 ROCs: u_i^EMA, u_i^res, u_i^warp, u_i composite, motion, complexity |
 | `fig_quality_latency_compute.pdf` | Pareto frontier | E3 raw adaptive + fixed | 3D scatter or paired bars: FVD vs latency vs compute |
-| `fig_mode_trace.pdf` | Timeline | E4 raw recovery sweep | Ψ_i (line), τ_high/τ_low (bands), mode (color bar), r_i (shaded) over 50 frames |
+| `fig_mode_trace.pdf` | Timeline | E4 raw recovery sweep | 唯_i (line), 蟿_high/蟿_low (bands), mode (color bar), r_i (shaded) over 50 frames |
 | `fig_qualitative.pdf` | Frame grid | E3/E4 generated videos | Side-by-side: same prompt, fixed-fine / fixed-coarse / adaptive, at frames 1/10/25/50 |
-| `fig_long_horizon_curves.pdf` | Line plot | Long-horizon raw | FVD vs length 10→100, 3 systems, 95% CI |
-| `fig_drift_strips.pdf` | Frame strips | Long-horizon raw | 3 rollouts × 3 systems, keyframes at 10/30/50/70/100 |
+| `fig_long_horizon_curves.pdf` | Line plot | Long-horizon raw | FVD vs length 10鈫?00, 3 systems, 95% CI |
+| `fig_drift_strips.pdf` | Frame strips | Long-horizon raw | 3 rollouts 脳 3 systems, keyframes at 10/30/50/70/100 |
 | `fig_switch_cost.pdf` | Histogram | E4 raw | LPIPS spike distribution at mode transitions |
-| `fig_threshold_sweep.pdf` | Heatmap | E3 ablation | Quality (color) vs τ_high (x) vs τ_low (y) |
-| `fig_recovery_sweep.pdf` | Bar chart | E4 raw | Switch count + FVD@50 vs R ∈ {0,3,5,10} |
+| `fig_threshold_sweep.pdf` | Heatmap | E3 ablation | Quality (color) vs 蟿_high (x) vs 蟿_low (y) |
+| `fig_recovery_sweep.pdf` | Bar chart | E4 raw | Switch count + FVD@50 vs R 鈭?{0,3,5,10} |
 | `fig_signal_overlays.pdf` | Video + signal | E2 raw | Frame strip with u_i, motion, complexity overlaid as line plots |
 | `fig_monotonicity.pdf` | Scatter + trend | E3 reanalysis | Fine-vs-coarse benefit (y) vs uncertainty quartile (x) |
 | `fig_failure_gallery.pdf` | Frame grid | E1/E3/E4 worst cases | 6 failure modes: drift, blur, color shift, object disappearance, camera jump, mode-switch seam |
 
 **Tables** (all LaTeX, generated from raw):
-- `tab_baseline.tex`: 4 fixed modes × [FVD@10/25/50, latency, compute]
-- `tab_signal_auroc.tex`: 6 signals × [AUROC, 95% CI]
-- `tab_controller_vs_fixed.tex`: Adaptive vs best fixed × [FVD@50, latency, compute, switch count]
-- `tab_recovery.tex`: R sweep × [switch count, switch cost, FVD@50]
-- `tab_full_comparison.tex`: All systems (E5) × all metrics
-- `tab_ablations.tex`: Signal components, threshold sweep, hysteresis band width, λ sweep, S-step choice
-- `coverage_matrix.tex`: RQ → data file → figure → decision
+- `tab_baseline.tex`: 4 fixed modes 脳 [FVD@10/25/50, latency, compute]
+- `tab_signal_auroc.tex`: 6 signals 脳 [AUROC, 95% CI]
+- `tab_controller_vs_fixed.tex`: Adaptive vs best fixed 脳 [FVD@50, latency, compute, switch count]
+- `tab_recovery.tex`: R sweep 脳 [switch count, switch cost, FVD@50]
+- `tab_full_comparison.tex`: All systems (E5) 脳 all metrics
+- `tab_ablations.tex`: Signal components, threshold sweep, hysteresis band width, 位 sweep, S-step choice
+- `coverage_matrix.tex`: RQ 鈫?data file 鈫?figure 鈫?decision
 
 **Videos** (stay on Kaggle, download only keyframes):
 - 5 side-by-side comparison videos (fixed-fine / fixed-coarse / adaptive), 10 seconds each
@@ -614,13 +609,13 @@ After Stage 0 reconnaissance, I have studied:
 ## 8. OPEN PROBLEMS & RECOMMENDED OPTIONS
 
 ### Problem 1: No action-conditioned checkpoint
-**Impact**: Cannot test control-augmented potential Ψ_i = u_i + λΔa_i (Eq. 6 from proposal).  
+**Impact**: Cannot test control-augmented potential 唯_i = u_i + 位螖a_i (Eq. 6 from proposal).  
 **Options**:
-1. **Recommended**: Proceed text-only (λ=0). Frame as "visual uncertainty baseline" that future work can extend with action.
+1. **Recommended**: Proceed text-only (位=0). Frame as "visual uncertainty baseline" that future work can extend with action.
 2. Search for camera-conditioned checkpoint (minWM demos? Other Wan releases?)
 3. Fine-tune your own action head (costs >500 GPU-hours, out of scope)
 
-**Decision**: Option 1. Note in DEVIATIONS.md: "Control term deferred; λ=0 baseline establishes visual signal contribution."
+**Decision**: Option 1. Note in DEVIATIONS.md: "Control term deferred; 位=0 baseline establishes visual signal contribution."
 
 ---
 
@@ -636,7 +631,7 @@ After Stage 0 reconnaissance, I have studied:
 ---
 
 ### Problem 3: Camera drift in frame-wise 4-step
-**Impact**: Causal-rCM's own report—frame-wise 4-step develops directional camera bias, trains stably for only ~1k iters.  
+**Impact**: Causal-rCM's own report鈥攆rame-wise 4-step develops directional camera bias, trains stably for only ~1k iters.  
 **Options**:
 1. **Recommended**: Use frame-wise S=2 as primary (paper reports VBench 84.63, stable for ~3k iters). Cap S=4 rollouts at 25 frames in E1.
 2. Accept drift as the phenomenon under study (your proposal already cites it)
@@ -647,9 +642,9 @@ After Stage 0 reconnaissance, I have studied:
 ---
 
 ### Problem 4: What is "matched compute"?
-**Impact**: Fairness comparison (E3) requires normalizing C = Σ κ(m_i). Papers report latency (ms/frame), not FLOPs.  
+**Impact**: Fairness comparison (E3) requires normalizing C = 危 魏(m_i). Papers report latency (ms/frame), not FLOPs.  
 **Options**:
-1. **Recommended**: Measure GPU-time per segment in E1 (ms), use as κ(·). Report FLOPs estimate (N_params × 2 × seq_len) in appendix.
+1. **Recommended**: Measure GPU-time per segment in E1 (ms), use as 魏(路). Report FLOPs estimate (N_params 脳 2 脳 seq_len) in appendix.
 2. Use first-frame latency only (ignores amortization)
 3. Token count (but Causal-rCM is latent-space, unclear mapping)
 
@@ -679,7 +674,7 @@ After Stage 0 reconnaissance, I have studied:
 ---
 
 ### Problem 7: Latent frames vs pixel frames
-**Impact**: Causal-rCM generates latent frames (16×downsampled), VAE decodes to pixels. Quality metrics on which space?  
+**Impact**: Causal-rCM generates latent frames (16脳downsampled), VAE decodes to pixels. Quality metrics on which space?  
 **Options**:
 1. **Recommended**: Generate latent, VAE-decode each frame, measure FVD/LPIPS on pixels (standard practice per CF/CF++ papers)
 2. Measure in latent space (faster, but non-standard)
@@ -689,19 +684,19 @@ After Stage 0 reconnaissance, I have studied:
 ---
 
 ### Problem 8: Maximum rollout length T4 can support
-**Impact**: Long-horizon study (§6) wants 100-150 frames, but KV cache grows.  
+**Impact**: Long-horizon study (搂6) wants 100-150 frames, but KV cache grows.  
 **Options**:
 1. **Recommended**: Phase 0 tests max length at 480p, batch=1. If <100, reduce to 75 or 50 and acknowledge limitation.
 2. Sliding window KV cache (evict oldest)
 3. Reduce resolution to 360p
 
-**Decision**: Option 1. Phase 0 profiles VRAM vs length. Report actual max in paper. If ≥100, great. If 50, still sufficient (proposal calls 50 frames "long-horizon" relative to published 10-81).
+**Decision**: Option 1. Phase 0 profiles VRAM vs length. Report actual max in paper. If 鈮?00, great. If 50, still sufficient (proposal calls 50 frames "long-horizon" relative to published 10-81).
 
 ---
 
 ## 9. YOUR DECISIONS (Must Make Before Phase 1)
 
-1. **Action checkpoint**: Proceed text-only (λ=0), or should I spend Phase 0 searching harder?  
+1. **Action checkpoint**: Proceed text-only (位=0), or should I spend Phase 0 searching harder?  
    **Recommended**: Text-only. Saves weeks.
 
 2. **Rollout length cap**: If T4 supports only 50 frames, is that acceptable?  
@@ -729,7 +724,7 @@ After Stage 0 reconnaissance, I have studied:
    **Recommended**: Skip. FVD/LPIPS/VBench are accepted proxies in this subfield.
 
 10. **When to stop**: If by Week 6 results are negative across all RQs, do we write up and submit, or pivot?  
-**Recommended**: Write up. Negative results are pre-registered as informative. This subfield is moving fast—submitting early with negative results is better than delaying for a pivot that may be scooped.
+**Recommended**: Write up. Negative results are pre-registered as informative. This subfield is moving fast鈥攕ubmitting early with negative results is better than delaying for a pivot that may be scooped.
 
 ---
 
@@ -741,23 +736,23 @@ After Stage 0 reconnaissance, I have studied:
 
 3. **Failure mode taxonomy**: Beyond aggregate FVD, categorize failures (drift, blur, color shift, disappearance, camera jump, seam). Helps future work.
 
-4. **Latency breakdown**: First-frame vs second-frame latency (Causal-rCM reports both). Adaptive switching pays latency cost at mode change—quantify it.
+4. **Latency breakdown**: First-frame vs second-frame latency (Causal-rCM reports both). Adaptive switching pays latency cost at mode change鈥攓uantify it.
 
-5. **Switch cost metric**: Proposal mentions it but doesn't define it. I recommend: LPIPS spike at frame i where m_i ≠ m_{i-1}. Average over all switches.
+5. **Switch cost metric**: Proposal mentions it but doesn't define it. I recommend: LPIPS spike at frame i where m_i 鈮?m_{i-1}. Average over all switches.
 
-6. **Threshold sensitivity analysis**: Sweep τ_high × τ_low in E3. If quality is brittle to thresholds, controller won't generalize.
+6. **Threshold sensitivity analysis**: Sweep 蟿_high 脳 蟿_low in E3. If quality is brittle to thresholds, controller won't generalize.
 
-7. **Compute-matched comparison is critical**: Papers often compare methods with different FLOPs budgets. Your E3 must match C exactly, not approximately. E1 measures κ(·) precisely.
+7. **Compute-matched comparison is critical**: Papers often compare methods with different FLOPs budgets. Your E3 must match C exactly, not approximately. E1 measures 魏(路) precisely.
 
-8. **Qualitative comparison is not optional**: Reviewers will ask for visual examples. Generate side-by-side strips for at least 5 prompts × 3 systems.
+8. **Qualitative comparison is not optional**: Reviewers will ask for visual examples. Generate side-by-side strips for at least 5 prompts 脳 3 systems.
 
 9. **Related work refresh at Week 7**: This subfield drops 2-3 papers/week. Schedule a quick re-search at end of experiments to catch anything that supersedes your claims.
 
 10. **Camera drift is a feature, not a bug**: Your proposal frames it as a "limitation" Causal-rCM reports. Reframe: it's evidence that frame-wise generation is unsafe beyond some horizon, which motivates your controller. Make it central to the story.
 
-11. **Action control is deferrable, not critical**: If you have no action checkpoint, don't force it. The visual uncertainty signal (λ=0) is already novel per your lit review—no reviewed method uses predictive uncertainty for K-switching. Action is an extension.
+11. **Action control is deferrable, not critical**: If you have no action checkpoint, don't force it. The visual uncertainty signal (位=0) is already novel per your lit review鈥攏o reviewed method uses predictive uncertainty for K-switching. Action is an extension.
 
-12. **Repository structure from day 1**: Don't refactor later. The tree in §1 is the actual code structure. Every .py file starts with a docstring showing its INPUT/OUTPUT tree.
+12. **Repository structure from day 1**: Don't refactor later. The tree in 搂1 is the actual code structure. Every .py file starts with a docstring showing its INPUT/OUTPUT tree.
 
 ---
 
@@ -784,22 +779,22 @@ After Stage 0 reconnaissance, I have studied:
 | Phase | Task | GPU-hours (T4) | Wall-clock (with parallelization) |
 |-------|------|----------------|------------------------------------|
 | Phase 0 | Feasibility | 1 | 1 hour (Day 1, Hour 3) |
-| E1 | Fixed modes: 4 configs × 300 rollouts × 50 frames | 20 | 5 hours (4 jobs parallel, Day 1 Hours 3-8) |
-| E2 | Uncertainty scoring (reuses E1 frames, compute-only) | 10 | 10 hours (Day 1 Hour 10 → Day 2 Hour 1) |
-| E3 | Adaptive controller: 300 rollouts × 50 frames | 25 | 12 hours (Day 2 Hours 2-14, parallel with E4) |
-| E4 | Recovery sweep: 4 values of R × 100 rollouts | 12 | 6 hours (Day 2 Hours 2-8, parallel with E3) |
-| E5 | Baselines + CF/CF++: 5 systems × 100 rollouts | 18 | 9 hours (Day 2 Hours 4-13) |
+| E1 | Fixed modes: 4 configs 脳 300 rollouts 脳 50 frames | 20 | 5 hours (4 jobs parallel, Day 1 Hours 3-8) |
+| E2 | Uncertainty scoring (reuses E1 frames, compute-only) | 10 | 10 hours (Day 1 Hour 10 鈫?Day 2 Hour 1) |
+| E3 | Adaptive controller: 300 rollouts 脳 50 frames | 25 | 12 hours (Day 2 Hours 2-14, parallel with E4) |
+| E4 | Recovery sweep: 4 values of R 脳 100 rollouts | 12 | 6 hours (Day 2 Hours 2-8, parallel with E3) |
+| E5 | Baselines + CF/CF++: 5 systems 脳 100 rollouts | 18 | 9 hours (Day 2 Hours 4-13) |
 | **Total** | | **86 GPU-hours** | **~60 wall-clock hours** (spread over 3 days) |
 
 **3-Day Quota Strategy**:
-- Kaggle free tier: 2×T4 GPUs, 30 hours/week quota
-- **BUT**: You can submit multiple jobs in parallel (each gets its own 2×T4 allocation)
+- Kaggle free tier: 2脳T4 GPUs, 30 hours/week quota
+- **BUT**: You can submit multiple jobs in parallel (each gets its own 2脳T4 allocation)
 - Day 1: 4 E1 jobs (20 GPU-hours) + Phase 0 (1 hour) = 21 hours consumed in 5 wall-clock hours
 - Day 2: E3+E4 parallel (37 GPU-hours) + E5 (18 hours) = 55 hours consumed in 12 wall-clock hours
 - Day 3: Analysis only (no GPU)
 - **Total quota needed**: 76 GPU-hours in 3 days = 25 hours/day if sequential, but **parallelization keeps us under 30h/week** by spreading across multiple concurrent jobs
 
-**Quota hack**: Kaggle allows multiple notebooks running simultaneously. Submit 4-6 jobs at once, each consumes from the same weekly quota but runs in parallel. Total wall-clock time drops from 86 hours → ~60 hours.
+**Quota hack**: Kaggle allows multiple notebooks running simultaneously. Submit 4-6 jobs at once, each consumes from the same weekly quota but runs in parallel. Total wall-clock time drops from 86 hours 鈫?~60 hours.
 
 **Fallback**: If quota exhausts Day 2, write paper with partial results (E1+E2 already sufficient for baseline+signal comparison). E3-E5 can run Day 3 if quota resets.
 
@@ -810,12 +805,12 @@ After Stage 0 reconnaissance, I have studied:
 ### Day 1 (12 hours): Setup + Launch All Baseline Jobs
 **Hours 1-2**: Local setup
 - Clone NVlabs/rcm, create project tree, implement `src/` packages
-- Write all job scripts (Phase 0, E1×4 configs, E2, E3, E4, E5)
+- Write all job scripts (Phase 0, E1脳4 configs, E2, E3, E4, E5)
 - Create `j1s4nn/adaptive-granularity-wm` GitHub repo, push initial commit
 
 **Hours 3-4**: Submit Phase 0 + E1 jobs (parallel)
 - Phase 0: 1 GPU-hour (runs while you work)
-- E1: Submit 4 jobs in parallel (c1-1 S=1/2/4, c3-3 S=4) → 20 GPU-hours total, but 5 hours wall-clock with 4× parallelization
+- E1: Submit 4 jobs in parallel (c1-1 S=1/2/4, c3-3 S=4) 鈫?20 GPU-hours total, but 5 hours wall-clock with 4脳 parallelization
 - Monitor: `push_and_wait.py` polls every 10 minutes, downloads results automatically
 
 **Hours 5-8**: Implement E2-E5 while E1 runs
@@ -828,12 +823,12 @@ After Stage 0 reconnaissance, I have studied:
 **Hours 9-10**: E1 results arrive, launch E2
 - Download E1 raw JSONL (auto-downloaded by push_and_wait)
 - Generate `fig_error_curves.pdf`, `tab_baseline.tex` (automated)
-- Compute coarse-unsafe labels (Δ threshold from E1 data)
+- Compute coarse-unsafe labels (螖 threshold from E1 data)
 - Submit E2: Uncertainty scoring on E1 rollouts (10 GPU-hours, starts at Hour 10)
 
 **Hours 11-12**: Paper outline + E3 prep
 - Write paper skeleton (intro, method, results templates)
-- Calibrate τ_high/τ_low from E1 baselines (estimate from error curves)
+- Calibrate 蟿_high/蟿_low from E1 baselines (estimate from error curves)
 - Prepare E3 job scripts (ready to submit when E2 completes)
 - **End of Day 1**: E2 running overnight
 
@@ -842,9 +837,9 @@ After Stage 0 reconnaissance, I have studied:
 ### Day 2 (12 hours): Core Experiments + Results Processing
 **Hours 1-2**: E2 results + launch E3/E4 (parallel)
 - Download E2 ROC data, generate `fig_roc.pdf`, `tab_signal_auroc.tex`
-- Final calibration of τ_high/τ_low from E2 AUROC
+- Final calibration of 蟿_high/蟿_low from E2 AUROC
 - Submit E3 (adaptive controller, 25 GPU-hours) + E4 (recovery sweep, 12 GPU-hours) **in parallel**
-- Both jobs run simultaneously: 25 GPU-hour wall-clock with 2×T4
+- Both jobs run simultaneously: 25 GPU-hour wall-clock with 2脳T4
 
 **Hours 3-6**: E5 baseline implementations + launch
 - While E3/E4 run, implement motion/complexity controllers
@@ -864,7 +859,7 @@ After Stage 0 reconnaissance, I have studied:
 **Hours 10-12**: RQ4 analysis + long-horizon rerun
 - Reanalyze E3 data for RQ4 (monotonicity): bin by uncertainty quartile
 - Generate `fig_monotonicity.pdf`
-- **If time allows**: Submit long-horizon extension (100-frame rollouts, 5 prompts) → runs overnight
+- **If time allows**: Submit long-horizon extension (100-frame rollouts, 5 prompts) 鈫?runs overnight
 - Start filling paper Results section with numbers from E3/E4
 - **End of Day 2**: E5 completes overnight, long-horizon (optional) runs
 
@@ -876,7 +871,7 @@ After Stage 0 reconnaissance, I have studied:
 - Generate `tab_full_comparison.tex`, `fig_threshold_sweep.pdf`, `fig_recovery_sweep.pdf`
 - If long-horizon ran overnight, generate `fig_long_horizon_curves.pdf`, `fig_drift_strips.pdf`
 - Complete `fig_failure_gallery.pdf` (worst-case frames from all experiments)
-- Generate `coverage_matrix.tex` (automated: RQ → data → figure mapping)
+- Generate `coverage_matrix.tex` (automated: RQ 鈫?data 鈫?figure mapping)
 
 **Hours 4-6**: Finalize all tables and ablations
 - Run ablation analysis scripts on E3/E4 data (threshold sweep, hysteresis band, signal components)
@@ -893,7 +888,7 @@ After Stage 0 reconnaissance, I have studied:
 - Polish Related Work (add any papers from Week 7 re-search)
 
 **Hours 11-12**: Final checks + submission prep
-- Run research integrity checklist (§11): Every number traced to raw file
+- Run research integrity checklist (搂11): Every number traced to raw file
 - Validate PREREG.md decision rules against actual results
 - Generate camera-ready PDFs: `paper.pdf`, `supplement.pdf`
 - Push final commit to `j1s4nn/adaptive-granularity-wm`
@@ -906,39 +901,17 @@ After Stage 0 reconnaissance, I have studied:
 
 ```
 Day 1:
-Hour  1 ═══════════════════════════════════════════════════════
-      Setup + Code Implementation
-Hour  2 ═══════════════════════════════════════════════════════
-
-Hour  3 ┌─ Phase 0 (1h GPU) ─┐
-Hour  4 │                     ├─ E1 Job 1 (c1-1 S=1, 5h GPU) ──┐
-Hour  5 │                     ├─ E1 Job 2 (c1-1 S=2, 5h GPU) ──┤
-Hour  6 │                     ├─ E1 Job 3 (c1-1 S=4, 5h GPU) ──┤
-Hour  7 │                     ├─ E1 Job 4 (c3-3 S=4, 5h GPU) ──┤
-Hour  8 │  (while coding)     │                                 │
-Hour  9 └─────────────────────┘                                 │
-Hour 10                         └─ E1 complete, E2 starts (10h) ┘
-Hour 11                                                    ┌─────────
-Hour 12 (E2 runs overnight) ────────────────────────────────────────>
+Hour  1 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?      Setup + Code Implementation
+Hour  2 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+Hour  3 鈹屸攢 Phase 0 (1h GPU) 鈹€鈹?Hour  4 鈹?                    鈹溾攢 E1 Job 1 (c1-1 S=1, 5h GPU) 鈹€鈹€鈹?Hour  5 鈹?                    鈹溾攢 E1 Job 2 (c1-1 S=2, 5h GPU) 鈹€鈹€鈹?Hour  6 鈹?                    鈹溾攢 E1 Job 3 (c1-1 S=4, 5h GPU) 鈹€鈹€鈹?Hour  7 鈹?                    鈹溾攢 E1 Job 4 (c3-3 S=4, 5h GPU) 鈹€鈹€鈹?Hour  8 鈹? (while coding)     鈹?                                鈹?Hour  9 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?                                鈹?Hour 10                         鈹斺攢 E1 complete, E2 starts (10h) 鈹?Hour 11                                                    鈹屸攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+Hour 12 (E2 runs overnight) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€>
 
 Day 2:
-Hour  1 ←─ E2 completes ─────────────┘
-Hour  2     ┌─ E3 (adaptive, 25h GPU) ──────────────────┐
-Hour  3     ├─ E4 (recovery, 12h GPU) ─────────┐        │
-Hour  4     │  ┌─ E5 (baselines, 18h GPU) ─────┼────────┤
-Hour  5     │  │                                │        │
-Hour  6     │  │                                │        │
-Hour  7     │  │                        E4 done │        │
-Hour  8     │  │                                │        │
-Hour  9     │  │                                │   E3 done
-Hour 10     │  │  E5 continues                  │
-Hour 11     │  │                                │
-Hour 12     │  └────────────────────────────────┘
-          (E5 completes overnight)
+Hour  1 鈫愨攢 E2 completes 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?Hour  2     鈹屸攢 E3 (adaptive, 25h GPU) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?Hour  3     鈹溾攢 E4 (recovery, 12h GPU) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?       鈹?Hour  4     鈹? 鈹屸攢 E5 (baselines, 18h GPU) 鈹€鈹€鈹€鈹€鈹€鈹尖攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?Hour  5     鈹? 鈹?                               鈹?       鈹?Hour  6     鈹? 鈹?                               鈹?       鈹?Hour  7     鈹? 鈹?                       E4 done 鈹?       鈹?Hour  8     鈹? 鈹?                               鈹?       鈹?Hour  9     鈹? 鈹?                               鈹?  E3 done
+Hour 10     鈹? 鈹? E5 continues                  鈹?Hour 11     鈹? 鈹?                               鈹?Hour 12     鈹? 鈹斺攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹?          (E5 completes overnight)
 
 Day 3:
-Hour  1 ←─ E5 done ─┘
-Hour  2     Figure generation
+Hour  1 鈫愨攢 E5 done 鈹€鈹?Hour  2     Figure generation
 Hour  3     
 Hour  4     Ablations + Tables
 Hour  5     
@@ -948,12 +921,12 @@ Hour  8     Write Discussion
 Hour  9     Write Conclusion
 Hour 10     Polish Intro/Related
 Hour 11     Final checks
-Hour 12     ✓ PAPER COMPLETE
+Hour 12     鉁?PAPER COMPLETE
 ```
 
 **Total GPU-hours consumed**: 86 hours  
 **Total wall-clock time**: ~60 hours (thanks to parallelization)  
-**Kaggle quota usage**: Acceptable (submit 4-6 jobs in parallel, each uses 2×T4)
+**Kaggle quota usage**: Acceptable (submit 4-6 jobs in parallel, each uses 2脳T4)
 
 **Key to speed**:
 1. **No sequential dependencies**: E3/E4/E5 can start as soon as E1/E2 data exists
@@ -968,7 +941,7 @@ Hour 12     ✓ PAPER COMPLETE
 
 I will proceed to Phase 1 only after you confirm:
 
-- [ ] **Text-only baseline (λ=0) is acceptable**: No action checkpoint = no control term. Future work.
+- [ ] **Text-only baseline (位=0) is acceptable**: No action checkpoint = no control term. Future work.
 - [ ] **50-frame cap is acceptable**: If T4 limits long-horizon to 50 frames (vs aspirational 100-150).
 - [ ] **Negative results are publishable**: If adaptive = fixed, we write it up as "switching offers no benefit."
 - [ ] **Kaggle quota understood**: 86 GPU-hours over 6 weeks = 14/week average, fits in 30h/week quota.
@@ -979,37 +952,37 @@ I will proceed to Phase 1 only after you confirm:
 
 ---
 
-## YOUR DECISION LIST (From Proposal §7, Now Actionable)
+## YOUR DECISION LIST (From Proposal 搂7, Now Actionable)
 
-1. **Action checkpoint handling**: Text-only (λ=0) or search harder?  
-   → **Recommended: Text-only**
+1. **Action checkpoint handling**: Text-only (位=0) or search harder?  
+   鈫?**Recommended: Text-only**
 
 2. **Rollout length cap**: 50 frames OK if T4 can't do 100?  
-   → **Recommended: Yes**
+   鈫?**Recommended: Yes**
 
 3. **Negative result policy**: Publish if H2/H3 fail?  
-   → **Recommended: Yes (pre-registered)**
+   鈫?**Recommended: Yes (pre-registered)**
 
 4. **CF/CF++ cross-recipe**: Essential or optional?  
-   → **Recommended: Optional**
+   鈫?**Recommended: Optional**
 
-5. **Threshold sensitivity**: Sweep τ in E3?  
-   → **Recommended: Yes (ablation table)**
+5. **Threshold sensitivity**: Sweep 蟿 in E3?  
+   鈫?**Recommended: Yes (ablation table)**
 
 6. **Failure mode taxonomy**: Manual labeling?  
-   → **Recommended: I label, you spot-check**
+   鈫?**Recommended: I label, you spot-check**
 
 7. **Repository license**: MIT or Apache 2.0?  
-   → **Recommended: MIT**
+   鈫?**Recommended: MIT**
 
 8. **Paper venue**: Conference (CVPR/NeurIPS) or journal?  
-   → **Your call (affects writing style)**
+   鈫?**Your call (affects writing style)**
 
 9. **Human evaluation**: Skip?  
-   → **Recommended: Skip (FVD/VBench sufficient)**
+   鈫?**Recommended: Skip (FVD/VBench sufficient)**
 
 10. **Week 7 lit re-check**: Confirm?  
-→ **Recommended: Yes (fast-moving field)**
+鈫?**Recommended: Yes (fast-moving field)**
 
 ---
 
@@ -1018,7 +991,7 @@ I will proceed to Phase 1 only after you confirm:
 **Next step**: You review this plan. Reply "approved" to start **immediate execution** (Day 1 Hour 1), or ask questions/request changes.
 
 **What I need from you now**:
-1. Approve/modify the 10 decisions in §14 (action=text-only, rollout=50, negatives=publish, etc.)
+1. Approve/modify the 10 decisions in 搂14 (action=text-only, rollout=50, negatives=publish, etc.)
 2. Confirm paper venue: Conference (CVPR/ICCV/NeurIPS) or arXiv preprint first?
 3. GitHub repo name confirmation: `j1s4nn/adaptive-granularity-wm` or different?
 4. Any hard deadline? (e.g., "paper must be submitted by [date]")
@@ -1031,4 +1004,6 @@ Once approved, I will **immediately**:
 5. Generate paper outline (LaTeX template with TikZ figures)
 6. **Report Phase 0 + E1 results in ~6 hours** (Hour 10 of Day 1)
 
-**Estimated time to complete paper**: 72 hours (3 days) from approval, with all experiments completed and figures generated. No compromises, no shortcuts—full proposal execution at maximum speed.
+**Estimated time to complete paper**: 72 hours (3 days) from approval, with all experiments completed and figures generated. No compromises, no shortcuts鈥攆ull proposal execution at maximum speed.
+
+

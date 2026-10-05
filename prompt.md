@@ -1,4 +1,4 @@
-# Continuation Prompt — Adaptive Granularity WM
+﻿# Continuation Prompt 鈥?Adaptive Granularity WM
 
 You are continuing the research project in:
 
@@ -6,7 +6,7 @@ You are continuing the research project in:
 
 Read these files before doing anything:
 
-1. `MASTER_PLAN.md` — follow the **Operational Master Plan v2** at the top; the older schedule is historical.
+1. `MASTER_PLAN.md` 鈥?follow the **Operational Master Plan v2** at the top; the older schedule is historical.
 2. `STATUS.md`
 3. `PROGRESS.md`
 4. `CLAUDE.md`
@@ -50,9 +50,15 @@ Work one phase at a time. At the end of every phase:
 
 Never submit a job containing random metrics, dummy frames, repeated placeholder prompts, or unmeasured compute. Include controller, checkpoint-switch, VAE, and decoding overhead in timing. Split calibration and held-out test prompts.
 
+## Completed Phase 1a/1b audit
+
+Phase 1a/1b completed on 2026-10-05. Kaggle kernel `ajjisan/phase-1-runtime-switch-smoke-test-v2` passed a real c1-1 -> c3-3 -> c1-1 sequence on Tesla T4. Metadata: `results/phase1_switch_v2_dl/results/phase1_switch/20261005_031931/20261005_031931_meta.json`. Boundary latent diagnostics are 0.0 in both directions. KV-cache persistence is unavailable and must not be claimed; model loading and switching cost are measured.
+
+Proposal coverage: runtime switching feasibility and speed accounting are covered; uncertainty selection, fixed-mode comparisons, recovery/hysteresis, long-horizon behavior, and paper metrics remain pending. Action conditioning remains deferred with lambda_action=0.
+
 ## Phase state
 
-Current phase: **Phase 1 — infrastructure correction and c1-1 → c3-3 → c1-1 smoke test**
+Current phase: **Phase 2 - fixed-mode baseline**
 
 Next required evidence:
 
@@ -62,9 +68,13 @@ Next required evidence:
 - one valid runtime switch sequence or a documented switch failure;
 - measured switching overhead and context/latent alignment status.
 
-When Phase 1 is complete, replace the current phase with Phase 2 and clear only the completed task list. Preserve the audit result and links to artifacts.
+Phase 1 is complete. Begin Phase 2 after this audit; preserve the audit result and links to artifacts.
 
 ## GitHub workflow
 
 The repository name `adaptive-granularity-wm` is professional and should be kept. Commit one coherent phase at a time with a descriptive message, then push only after local validation. Do not force-push or recreate the repository.
+
+
+
+
 
