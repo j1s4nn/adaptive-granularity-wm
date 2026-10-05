@@ -263,7 +263,9 @@ def main():
             else:
                 chunk_t, steps = 1, [1]
                 num_steps, first_chunk_t = 4, 1
-                schedule_spec, mid = ";", [15 / 16, 5 / 6, 5 / 8]
+                # No custom midpoint is needed for a one-step continuation;
+                # an empty spec means the default schedule list is used.
+                schedule_spec, mid = "", [15 / 16, 5 / 6, 5 / 8]
             t_steps, schedules = t_schedule(num_steps, steps, schedule_spec)
             total_t = 1 + remaining_t
             _, blocks, _ = make_block_pattern(total_t, latent_h, latent_w, first_chunk_t, chunk_t,
